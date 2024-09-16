@@ -2,7 +2,7 @@ services:
   nginx:
     image: nginx:alpine
     ports:
-      - "8443:443"
+      - "443:443"
     restart: unless-stopped
     secrets:
       - p1.leademailfinder.com.cert.pem
