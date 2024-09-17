@@ -1,0 +1,73 @@
+version: '3.9'
+
+# Common healthcheck properties
+x-healthcheck: &healthcheck
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 5s
+
+# The template for mongo replicas
+x-mongo: &mongo
+  image: mongo
+  restart: unless-stopped
+  command: [ "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/run/secrets/keyfile" ]
+  environment:
+    MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/mongo_root_username
+    MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/mongo_root_password
+  healthcheck:
+    <<: *healthcheck
+    test: mongosh --eval "db.adminCommand('ping')"
+  secrets:
+    - source: mongo_keyfile
+      target: keyfile
+      mode: 0400
+      uid: "999"
+      gid: "999"
+    - mongo_root_username
+    - mongo_root_password
+
+services:
+  mongo0:
+    <<: *mongo
+    volumes:
+      - mongo0-data:/data/db
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname==manager-1
+
+
+  mongo1:
+    <<: *mongo
+    volumes:
+      - mongo1-data:/data/db
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname==manager-2
+
+  mongo2:
+    <<: *mongo
+    volumes:
+      - mongo2-data:/data/db
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname==manager-3
+
+secrets:
+  mongo_keyfile:
+    external: true
+  mongo_root_username:
+    external: true
+  mongo_root_password:
+    external: true
+
+volumes:
+  mongo0-data:
+  mongo1-data:
+  mongo2-data:
