@@ -1,12 +1,5 @@
 version: '3.9'
 
-# Common healthcheck properties
-x-healthcheck: &healthcheck
-  interval: 30s
-  timeout: 10s
-  retries: 5
-  start_period: 5s
-
 # The template for mongo replicas
 x-mongo: &mongo
   image: mongo
@@ -16,7 +9,10 @@ x-mongo: &mongo
     MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/mongo_root_username
     MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/mongo_root_password
   healthcheck:
-    <<: *healthcheck
+    interval: 30s
+    timeout: 10s
+    retries: 5
+    start_period: 5s
     test: mongosh --eval "db.adminCommand('ping')"
   secrets:
     - source: mongo_keyfile
@@ -32,6 +28,7 @@ services:
     <<: *mongo
     volumes:
       - mongo0-data:/data/db
+      - mongo0-config:/data/configdb
     deploy:
       replicas: 1
       placement:
@@ -43,6 +40,7 @@ services:
     <<: *mongo
     volumes:
       - mongo1-data:/data/db
+      - mongo1-config:/data/configdb
     deploy:
       replicas: 1
       placement:
@@ -53,6 +51,7 @@ services:
     <<: *mongo
     volumes:
       - mongo2-data:/data/db
+      - mongo2-config:/data/configdb
     deploy:
       replicas: 1
       placement:
@@ -71,3 +70,6 @@ volumes:
   mongo0-data:
   mongo1-data:
   mongo2-data:
+  mongo0-config:
+  mongo1-config:
+  mongo2-config:
