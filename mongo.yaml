@@ -1,6 +1,10 @@
 version: '3.9'
 
-# The template for mongo replicas
+x-config: &config
+  mode: 0500
+  uid: "999"
+  gid: "999"
+
 x-mongo: &mongo
   image: mongo:7
   restart: unless-stopped
@@ -15,10 +19,10 @@ x-mongo: &mongo
     start_period: 5s
     test: mongosh --eval "db.adminCommand('ping')"
   configs:
-    - source: mongo_rs_initiate.js
-      mode: 0500
-      uid: "999"
-      gid: "999"
+    - source: rs-initiate.js
+      <<: *config
+    - source: db-create-user.js
+      <<: *config
   secrets:
     - source: mongo_keyfile
       target: keyfile
@@ -27,6 +31,7 @@ x-mongo: &mongo
       gid: "999"
     - mongo_root_username
     - mongo_root_password
+    - mongo_url
 
 services:
   mongo0:
@@ -70,8 +75,10 @@ services:
           - node.hostname==manager-3
 
 configs:
-  mongo_rs_initiate.js:
+  rs-initiate.js:
     file: configs/rs-initiate.js
+  db-create-user.js:
+    file: configs/db-create-user.js
 
 secrets:
   mongo_keyfile:
@@ -79,6 +86,8 @@ secrets:
   mongo_root_username:
     external: true
   mongo_root_password:
+    external: true
+  mongo_url:
     external: true
 
 volumes:
