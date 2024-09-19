@@ -10,6 +10,7 @@ x-mongo: &mongo
   restart: unless-stopped
   command: [ "--replSet", "rs1", "--bind_ip_all", "--keyFile", "/run/secrets/keyfile" ]
   environment:
+    MONGO_URL_FILE: /run/secrets/mongo_url
     MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/mongo_root_username
     MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/mongo_root_password
   healthcheck:
