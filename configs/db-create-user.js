@@ -25,7 +25,7 @@ const { ok } = db.createUser({
 })
 
 if (ok) {
-    console.log(`The database ${dbName} with user '${user}' and password ${pwd} was successfully created.`)
+    console.log(`The database ${dbName} with user '${user}' was successfully created.`)
 } else {
     console.error(`Something went wrong while creating the user.`)
 }
