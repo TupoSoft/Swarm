@@ -1,4 +1,4 @@
-const replicaSetId = 'rs1'
+const replicaSetId = 'rs0'
 
 const {ok} = rs.initiate(
     {
