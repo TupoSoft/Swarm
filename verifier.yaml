@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
   verifier:
-    image: kyrylokupin/email-verifier-node:latest
+    image: kyrylokupin/email-verifier-node:e9691b251d029260f973f2ed6f0d318a68e92863
     dns:
       - 1.1.1.1
       - 8.8.8.8
@@ -12,6 +12,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    environment:
+      MONGO_URL_FILE: /run/secrets/mongo_url
     deploy:
       mode: replicated
       replicas: 4
@@ -20,8 +22,16 @@ services:
           cpus: "1.0"
           memory: 512M
     networks:
+      - default
       - mongo_default
+    secrets:
+      - mongo_url
+
+secrets:
+  mongo_url:
+    external: true
 
 networks:
+  default:
   mongo_default:
     external: true
