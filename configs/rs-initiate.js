@@ -1,6 +1,8 @@
-const { ok } = rs.initiate(
+const replicaSetId = 'rs1'
+
+const {ok} = rs.initiate(
     {
-        _id: 'rs0',
+        _id: replicaSetId,
         version: 1,
         members: [
             { _id: 0, host: 'mongo0' },
@@ -11,5 +13,5 @@ const { ok } = rs.initiate(
 )
 
 if (ok !== 1) {
-    console.error('Failed to initialize rs0')
+    console.error(`Failed to initialize ${replicaSetId}`)
 }
