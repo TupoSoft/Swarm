@@ -19,9 +19,9 @@ x-mongo: &mongo
     start_period: 5s
     test: mongosh --eval "db.adminCommand('ping')"
   configs:
-    - source: rs-initiate.js
+    - source: rs-initiate-2.js
       <<: *config
-    - source: db-create-user.js
+    - source: db-create-user-2.js
       <<: *config
   secrets:
     - source: mongo_keyfile
@@ -75,9 +75,9 @@ services:
           - node.hostname==manager-3
 
 configs:
-  rs-initiate.js:
+  rs-initiate-2.js:
     file: configs/rs-initiate.js
-  db-create-user.js:
+  db-create-user-2.js:
     file: configs/db-create-user.js
 
 secrets:
