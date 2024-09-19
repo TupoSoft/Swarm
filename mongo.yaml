@@ -2,7 +2,7 @@ version: '3.9'
 
 # The template for mongo replicas
 x-mongo: &mongo
-  image: mongo
+  image: mongo:7
   restart: unless-stopped
   command: [ "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/run/secrets/keyfile" ]
   environment:
@@ -14,6 +14,11 @@ x-mongo: &mongo
     retries: 5
     start_period: 5s
     test: mongosh --eval "db.adminCommand('ping')"
+  configs:
+    - source: mongo_rs_initiate.js
+      mode: 0500
+      uid: "999"
+      gid: "999"
   secrets:
     - source: mongo_keyfile
       target: keyfile
@@ -29,6 +34,8 @@ services:
     volumes:
       - mongo0-data:/data/db
       - mongo0-config:/data/configdb
+    ports:
+      - "27017:27017"
     deploy:
       replicas: 1
       placement:
@@ -41,6 +48,8 @@ services:
     volumes:
       - mongo1-data:/data/db
       - mongo1-config:/data/configdb
+    ports:
+      - "27018:27017"
     deploy:
       replicas: 1
       placement:
@@ -49,6 +58,8 @@ services:
 
   mongo2:
     <<: *mongo
+    ports:
+      - "27019:27017"
     volumes:
       - mongo2-data:/data/db
       - mongo2-config:/data/configdb
@@ -57,6 +68,10 @@ services:
       placement:
         constraints:
           - node.hostname==manager-3
+
+configs:
+  mongo_rs_initiate.js:
+    file: configs/rs-initiate.js
 
 secrets:
   mongo_keyfile:
