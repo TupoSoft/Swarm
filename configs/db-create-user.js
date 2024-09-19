@@ -1,7 +1,7 @@
-const {readFileSync} = require('fs')
-const {URL} = require('url')
+const { readFileSync } = require('fs')
+const { URL } = require('url')
 
-const {MONGO_URL_FILE: mongoUrlFilePath} = process.env
+const { MONGO_URL_FILE: mongoUrlFilePath } = process.env
 
 if (mongoUrlFilePath === undefined) {
     console.error(`The MONGO_URL_FILE variable is undefined.`)
@@ -10,10 +10,10 @@ if (mongoUrlFilePath === undefined) {
 
 const mongoUrlFile = readFileSync(mongoUrlFilePath, 'utf-8')
 const mongoUrl = new URL(mongoUrlFile)
-const {username: user, password: pwd, pathname} = mongoUrl
+const { username: user, password: pwd, pathname } = mongoUrl
 const dbName = pathname.slice(1)
 
-const {ok} = db.createUser({
+const { ok } = db.createUser({
     user,
     pwd,
     roles: [

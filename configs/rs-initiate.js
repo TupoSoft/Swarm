@@ -5,9 +5,9 @@ const {ok} = rs.initiate(
         _id: replicaSetId,
         version: 1,
         members: [
-            {_id: 0, host: 'mongo0'},
-            {_id: 1, host: 'mongo1'},
-            {_id: 2, host: 'mongo2'},
+            { _id: 0, host: 'mongo0' },
+            { _id: 1, host: 'mongo1' },
+            { _id: 2, host: 'mongo2' },
         ]
     }
 )
