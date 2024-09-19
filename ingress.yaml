@@ -13,6 +13,7 @@ services:
       - source: p0.leademailfinder.com.conf
         target: /etc/nginx/conf.d/p0.leademailfinder.com.conf
     networks:
+      - default
       - verifier_default
     deploy:
       mode: global
@@ -28,5 +29,6 @@ configs:
     file: configs/p0.leademailfinder.com.conf
 
 networks:
+  default:
   verifier_default:
     external: true
