@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
   verifier:
-    image: kyrylokupin/email-verifier-node:e9691b251d029260f973f2ed6f0d318a68e92863
+    image: kyrylokupin/email-verifier-node:0ccd8baa0c74b85604e48ef91b313c6a581f86ca
     dns:
       - 1.1.1.1
       - 8.8.8.8
