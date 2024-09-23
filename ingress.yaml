@@ -12,6 +12,8 @@ services:
     configs:
       - source: p0.leademailfinder.com.conf
         target: /etc/nginx/conf.d/p0.leademailfinder.com.conf
+      - source: p1.leademailfinder.com.conf
+        target: /etc/nginx/conf.d/p1.leademailfinder.com.conf
     networks:
       - default
       - verifier_v2_default
@@ -27,6 +29,8 @@ secrets:
 configs:
   p0.leademailfinder.com.conf:
     file: configs/p0.leademailfinder.com.conf
+  p1.leademailfinder.com.conf:
+    file: configs/p1.leademailfinder.com.conf
 
 networks:
   default:

@@ -1,7 +1,7 @@
 version: '3.9'
 
 services:
-  verifier:
+  verifier: &verifier
     image: kyrylokupin/email-verifier-node:e9691b251d029260f973f2ed6f0d318a68e92863
     dns:
       - 1.1.1.1
@@ -17,15 +17,15 @@ services:
     deploy:
       mode: replicated
       replicas: 4
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 512M
     networks:
       - default
       - mongo_default
     secrets:
       - mongo_url
+
+  verifier_v2:
+    <<: *verifier
+    image: kyrylokupin/email-verifier-node:26e0448e98fddccce730c4ccd4676b819aa137c0
 
 secrets:
   mongo_url:
