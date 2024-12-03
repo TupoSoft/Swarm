@@ -1,0 +1,69 @@
+version: '3.9'
+
+services:
+  redis-primary: &replica
+    image: redis:7-alpine
+    healthcheck:
+      test: redis-cli --raw incr ping
+    volumes:
+      - redis-data:/data
+    secrets:
+      - redis-password
+    command: >
+      redis-server
+      --requirepass `cat /run/secrets/redis-password` 
+      --masterauth `cat /run/secrets/redis-password`
+      --appendonly yes
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname==manager-1
+
+  redis-replica-1:
+    <<: *replica
+    command: &replica-command >
+      redis-server
+      --replicaof primary 6379
+      --requirepass `cat /run/secrets/redis-password` 
+      --masterauth `cat /run/secrets/redis-password`
+      --appendonly yes
+    deploy:
+      placement:
+        constraints:
+          - node.hostname==manager-2
+
+  redis-replica-2:
+    <<: *replica
+    command: *replica-command
+    deploy:
+      placement:
+        constraints:
+          - node.hostname==manager-3
+
+  redis-sentinel-1:
+    image: redis:7-alpine
+    healthcheck:
+      test: redis-cli -p 26379 --raw incr ping
+    configs:
+      - source: sentinel.conf
+        target: /usr/local/etc/sentinel.conf
+    secrets:
+      - redis-password
+    command: >
+      redis-sentinel
+      /usr/local/etc/sentinel.conf
+      --sentinel auth-pass mymaster `cat /run/secrets/password`
+    deploy:
+      mode: global
+
+volumes:
+  redis-data:
+
+configs:
+  sentinel.conf:
+    file: configs/redis-sentinel.conf
+
+secrets:
+  redis-password:
+    external: true
