@@ -41,7 +41,7 @@ services:
         constraints:
           - node.hostname==manager-3
 
-  redis-sentinel-1:
+  redis-sentinel:
     image: redis:7-alpine
     healthcheck:
       test: redis-cli -p 26379 --raw incr ping
