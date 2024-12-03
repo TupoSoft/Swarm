@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
   verifier: &verifier
-    image: kyrylokupin/email-verifier-node:e9691b251d029260f973f2ed6f0d318a68e92863
+    image: kyrylokupin/email-verifier-node:e9691b251d029260f973f2ed6f0d318a68e92863-proxy-fix
     dns:
       - 1.1.1.1
       - 8.8.8.8
@@ -14,6 +14,7 @@ services:
       retries: 3
     environment:
       MONGO_URL_FILE: /run/secrets/mongo_url
+      PROXY_FILE: /run/secrets/proxies_v2
     deploy:
       mode: replicated
       replicas: 4
@@ -22,13 +23,16 @@ services:
       - mongo_default
     secrets:
       - mongo_url
+      - proxies_v2
 
   verifier_v2:
     <<: *verifier
-    image: kyrylokupin/email-verifier-node:26e0448e98fddccce730c4ccd4676b819aa137c0
+    image: kyrylokupin/email-verifier-node:cbd40e6150050b3d6f17a9a74bfda03c0e069cad
 
 secrets:
   mongo_url:
+    external: true
+  proxies_v2:
     external: true
 
 networks:
