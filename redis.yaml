@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  redis-primary: &replica
+  primary: &replica
     image: redis:7-alpine
     healthcheck:
       test: redis-cli --raw incr ping
@@ -9,31 +9,34 @@ services:
       - redis-data:/data
     secrets:
       - redis-password
-    command: >
-      redis-server
-      --requirepass `cat /run/secrets/redis-password` 
-      --masterauth `cat /run/secrets/redis-password`
-      --appendonly yes
+    entrypoint: sh -c
+    command:
+      - |
+        redis-server
+        --requirepass `cat /run/secrets/redis-password` 
+        --masterauth `cat /run/secrets/redis-password`
+        --appendonly yes
     deploy:
       replicas: 1
       placement:
         constraints:
           - node.hostname==manager-1
 
-  redis-replica-1:
+  replica_1:
     <<: *replica
-    command: &replica-command >
-      redis-server
-      --replicaof primary 6379
-      --requirepass `cat /run/secrets/redis-password` 
-      --masterauth `cat /run/secrets/redis-password`
-      --appendonly yes
+    command: &replica-command
+      - |
+        redis-server
+        --replicaof primary 6379
+        --requirepass `cat /run/secrets/redis-password` 
+        --masterauth `cat /run/secrets/redis-password`
+        --appendonly yes
     deploy:
       placement:
         constraints:
           - node.hostname==manager-2
 
-  redis-replica-2:
+  replica_2:
     <<: *replica
     command: *replica-command
     deploy:
@@ -41,19 +44,21 @@ services:
         constraints:
           - node.hostname==manager-3
 
-  redis-sentinel:
+  sentinel:
     image: redis:7-alpine
     healthcheck:
       test: redis-cli -p 26379 --raw incr ping
     configs:
-      - source: sentinel.conf
-        target: /usr/local/etc/sentinel.conf
+      - sentinel.conf
     secrets:
       - redis-password
-    command: >
-      redis-sentinel
-      /usr/local/etc/sentinel.conf
-      --sentinel auth-pass mymaster `cat /run/secrets/password`
+    entrypoint: sh -c
+    command:
+      - |
+        REDIS_PASSWORD=`cat /run/secrets/redis-password`
+        cp /sentinel.conf /redis-sentinel.conf
+        echo "sentinel auth-pass mymaster $$REDIS_PASSWORD" >> /redis-sentinel.conf
+        redis-sentinel /redis-sentinel.conf
     deploy:
       mode: global
 
