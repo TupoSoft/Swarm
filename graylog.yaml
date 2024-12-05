@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  datanode-01: &datanode
+    image: graylog/graylog-datanode:6.1
+    environment: &datanode-env
+      GRAYLOG_DATANODE_PASSWORD_SECRET_FILE: /run/secrets/graylog_password_secret
+      GRAYLOG_DATANODE_ROOT_USERNAME_FILE: /run/secrets/graylog_root_username
+      GRAYLOG_DATANODE_MONGODB_URI_FILE: /run/secrets/graylog_mongodb_uri
+    ulimits:
+      memlock:
+        hard: -1
+        soft: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    secrets:
+      - graylog_root_username
+      - graylog_password_secret
+      - graylog_mongodb_uri
+    volumes:
+      - graylog-datanode-01:/var/lib/graylog-datanode
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == manager-1
+
+  datanode-02:
+    <<: *datanode
+    volumes:
+      - graylog-data-02:/var/lib/graylog-datanode
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == manager-2
+
+  datanode-03:
+    <<: *datanode
+    volumes:
+      - graylog-data-03:/var/lib/graylog-datanode
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == manager-3
+
+  graylog-01: &graylog
+    image: graylog/graylog:6.1
+    environment: &graylog-env
+      <<: *datanode-env
+      GRAYLOG_NODE_ID_FILE: /usr/share/graylog/data/data/node-id
+      GRAYLOG_ELASTICSEARCH_HOSTS: https://datanode:9200
+    ports:
+      - "9000:9000"
+    volumes:
+      - graylog-data-01:/usr/share/graylog/data/data
+      - graylog-journal-01:/usr/share/graylog/data/journal
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == manager-1
+
+  graylog-02:
+    <<: *graylog
+    environment:
+      <<: *graylog-env
+      GRAYLOG_IS_LEADER: false
+    volumes:
+      - graylog-data-02:/usr/share/graylog/data/data
+      - graylog-journal-02:/usr/share/graylog/data/journal
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == manager-2
+
+  graylog-03:
+    <<: *graylog
+    environment:
+      <<: *graylog-env
+      GRAYLOG_IS_LEADER: false
+    volumes:
+      - graylog-data-03:/usr/share/graylog/data/data
+      - graylog-journal-03:/usr/share/graylog/data/journal
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == manager-3
+
+secrets:
+  graylog_root_username:
+    external: true
+  graylog_password_secret:
+    external: true
+  graylog_mongodb_uri:
+    external: true
+
+volumes:
+  graylog-datanode-01:
+  graylog-datanode-02:
+  graylog-datanode-03:
+
+  graylog-data-01:
+  graylog-data-02:
+  graylog-data-03:
+
+  graylog-journal-01:
+  graylog-journal-02:
+  graylog-journal-03:
+
+networks:
+  mongo_default:
+    external: true
