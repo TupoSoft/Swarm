@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   datanode_eu:
-    hostname: 'datanode.worker-1.eu.tuposoft.internal'
+    hostname: 'datanode.eu.tuposoft.internal'
     image: graylog/graylog-datanode:6.1
     environment:
       GRAYLOG_DATANODE_NODE_ID_FILE: /var/lib/graylog-datanode/node-id
@@ -34,7 +34,7 @@ services:
           - node.role == worker
 
   eu:
-    hostname: 'graylog.worker-1.eu.tuposoft.internal'
+    hostname: 'graylog.eu.tuposoft.internal'
     image: graylog/graylog:6.1
 #    disable the healthcheck for the initial setup
 #    healthcheck:
