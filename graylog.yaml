@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  datanode-01: &datanode
+  datanode_eu:
     hostname: 'datanode.eu.tuposoft.internal'
     image: graylog/graylog-datanode:6.1
     environment:
@@ -10,7 +10,6 @@ services:
       GRAYLOG_DATANODE_ROOT_PASSWORD_SHA2__FILE: /run/secrets/graylog_root_password_sha2
       GRAYLOG_DATANODE_ROOT_USERNAME__FILE: /run/secrets/graylog_root_username
       GRAYLOG_DATANODE_MONGODB_URI__FILE: /run/secrets/graylog_mongodb_uri
-      GRAYLOG_DATANODE_OPENSEARCH_HEAP: 512m
     ulimits:
       memlock:
         hard: -1
@@ -24,95 +23,40 @@ services:
       - graylog_password_secret
       - graylog_mongodb_uri
     volumes:
-      - graylog-datanode-01:/var/lib/graylog-datanode
+      - datanode-data-eu:/var/lib/graylog-datanode
     networks: &networks
-      - default
+      - graylog
       - mongo_default
     deploy:
       replicas: 1
       placement:
         constraints:
-          - node.hostname == manager-1
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1gb
+          - node.role == worker
 
-  datanode-02:
-    <<: *datanode
-    hostname: 'datanode.uk.tuposoft.internal'
-    volumes:
-      - graylog-data-02:/var/lib/graylog-datanode
-    deploy:
-      placement:
-        constraints:
-          - node.hostname == manager-2
-
-  datanode-03:
-    <<: *datanode
-    hostname: 'datanode.us.tuposoft.internal'
-    volumes:
-      - graylog-data-03:/var/lib/graylog-datanode
-    deploy:
-      placement:
-        constraints:
-          - node.hostname == manager-3
-
-  graylog-02: &graylog
+  eu:
     hostname: 'graylog.eu.tuposoft.internal'
     image: graylog/graylog:6.1
-#    disable the healthcheck during the setup
+#    disable the healthcheck for the initial setup
 #    healthcheck:
 #      disable: true
-    environment: &graylog-env
+    environment:
       GRAYLOG_PASSWORD_SECRET__FILE: /run/secrets/graylog_password_secret
       GRAYLOG_ROOT_PASSWORD_SHA2__FILE: /run/secrets/graylog_root_password_sha2
       GRAYLOG_ROOT_USERNAME__FILE: /run/secrets/graylog_root_username
       GRAYLOG_MONGODB_URI__FILE: /run/secrets/graylog_mongodb_uri
       GRAYLOG_NODE_ID_FILE: /usr/share/graylog/data/config/node-id
-      GRAYLOG_IS_LEADER: "false"
+    ports:
+      - "9000:9000"
     volumes:
-      - graylog-data-02:/usr/share/graylog/data/data
-      - graylog-journal-02:/usr/share/graylog/data/journal
+      - graylog-data-eu:/usr/share/graylog/data/data
+      - graylog-journal-eu:/usr/share/graylog/data/journal
     secrets: *secrets
     networks: *networks
     deploy:
       replicas: 1
       placement:
         constraints:
-          - node.hostname == manager-2
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1gb
-
-  graylog-01:
-    <<: *graylog
-    hostname: 'graylog.uk.tuposoft.internal'
-    environment:
-      <<: *graylog-env
-      GRAYLOG_IS_LEADER: "true"
-    ports:
-      - "9000:9000"
-    volumes:
-      - graylog-data-01:/usr/share/graylog/data/data
-      - graylog-journal-01:/usr/share/graylog/data/journal
-    deploy:
-      placement:
-        constraints:
-          - node.hostname == manager-1
-
-  graylog-03:
-    <<: *graylog
-    hostname: 'graylog.us.tuposoft.internal'
-    environment: *graylog-env
-    volumes:
-      - graylog-data-03:/usr/share/graylog/data/data
-      - graylog-journal-03:/usr/share/graylog/data/journal
-    deploy:
-      placement:
-        constraints:
-          - node.hostname == manager-3
+          - node.role == worker
 
 secrets:
   graylog_root_username:
@@ -125,19 +69,11 @@ secrets:
     external: true
 
 volumes:
-  graylog-datanode-01:
-  graylog-datanode-02:
-  graylog-datanode-03:
-
-  graylog-data-01:
-  graylog-data-02:
-  graylog-data-03:
-
-  graylog-journal-01:
-  graylog-journal-02:
-  graylog-journal-03:
+  datanode-data-eu:
+  graylog-data-eu:
+  graylog-journal-eu:
 
 networks:
-  default:
+  graylog:
   mongo_default:
     external: true
