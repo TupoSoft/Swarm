@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3.9'
 
 services:
   primary: &replica
@@ -44,7 +44,7 @@ services:
         constraints:
           - node.hostname==manager-3
 
-  sentinel:
+  sentinel_1: &sentinel
     image: redis:7-alpine
     healthcheck:
       test: redis-cli -p 26379 --raw incr ping
@@ -60,7 +60,26 @@ services:
         echo "sentinel auth-pass mymaster $$REDIS_PASSWORD" >> /redis-sentinel.conf
         redis-sentinel /redis-sentinel.conf
     deploy:
-      mode: global
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname==manager-1
+
+  sentinel_2:
+    <<: *sentinel
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname==manager-2
+
+  sentinel_3:
+    <<: *sentinel
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname==manager-3
 
 volumes:
   redis-data:
