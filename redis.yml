@@ -9,13 +9,13 @@ services:
       - redis-data:/data
     secrets:
       - redis-password
-    entrypoint: sh -c
-    command:
-      - |
-        redis-server
+    command: >
+        sh -c "redis-server
         --requirepass `cat /run/secrets/redis-password` 
         --masterauth `cat /run/secrets/redis-password`
-        --appendonly yes
+        --appendonly yes"
+    ports:
+      - "6379:6379"
     deploy:
       replicas: 1
       placement:
@@ -24,13 +24,12 @@ services:
 
   replica_1:
     <<: *replica
-    command: &replica-command
-      - |
-        redis-server
+    command: &replica-command >
+        sh -c "redis-server
         --replicaof primary 6379
         --requirepass `cat /run/secrets/redis-password` 
         --masterauth `cat /run/secrets/redis-password`
-        --appendonly yes
+        --appendonly yes"
     deploy:
       placement:
         constraints:
