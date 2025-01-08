@@ -1,7 +1,7 @@
 version: '3.9'
 
 services:
-  verifier: &verifier
+  verifier:
     image: kyrylokupin/email-verifier-node:e9691b251d029260f973f2ed6f0d318a68e92863-proxy-fix
     dns:
       - 1.1.1.1
@@ -18,16 +18,15 @@ services:
     deploy:
       mode: replicated
       replicas: 4
+      placement:
+        constraints:
+          - node.role == manager
     networks:
       - default
       - mongo_default
     secrets:
       - mongo_url
       - proxies_v2
-
-  verifier_v2:
-    <<: *verifier
-    image: kyrylokupin/email-verifier-node:cbd40e6150050b3d6f17a9a74bfda03c0e069cad
 
 secrets:
   mongo_url:
