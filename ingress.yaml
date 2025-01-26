@@ -9,6 +9,8 @@ services:
     secrets:
       - p1.leademailfinder.com.cert.pem
       - p1.leademailfinder.com.key.pem
+      - tuposoft.com.cert.pem
+      - tuposoft.com.key.pem
     configs:
       - source: p0.leademailfinder.com.conf
         target: /etc/nginx/conf.d/p0.leademailfinder.com.conf
@@ -27,6 +29,10 @@ secrets:
   p1.leademailfinder.com.cert.pem:
     external: true
   p1.leademailfinder.com.key.pem:
+    external: true
+  tuposoft.com.cert.pem:
+    external: true
+  tuposoft.com.key.pem:
     external: true
 
 configs:
