@@ -5,7 +5,6 @@ services:
     image: nginx:1.27-alpine
     ports:
       - "443:443"
-    restart: unless-stopped
     secrets:
       - p1.leademailfinder.com.cert.pem
       - p1.leademailfinder.com.key.pem
@@ -16,12 +15,13 @@ services:
         target: /etc/nginx/conf.d/p0.leademailfinder.com.conf
       - source: p1.leademailfinder.com.conf
         target: /etc/nginx/conf.d/p1.leademailfinder.com.conf
-      - source: tuposoft.com
+      - source: tuposoft.com.conf
         target: /etc/nginx/conf.d/tuposoft.com.conf
     networks:
       - default
       - verifier_v2_default
       - email_default
+      - tuposoftcom_default
     deploy:
       mode: global
 
@@ -49,4 +49,6 @@ networks:
   verifier_v2_default:
     external: true
   email_default:
+    external: true
+  tuposoftcom_default:
     external: true
