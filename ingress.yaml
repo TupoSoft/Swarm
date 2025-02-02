@@ -13,8 +13,6 @@ services:
     configs:
       - source: p0.leademailfinder.com.conf
         target: /etc/nginx/conf.d/p0.leademailfinder.com.conf
-      - source: p1.leademailfinder.com.conf
-        target: /etc/nginx/conf.d/p1.leademailfinder.com.conf
       - source: tuposoft.com.conf
         target: /etc/nginx/conf.d/tuposoft.com.conf
     networks:
@@ -38,8 +36,6 @@ secrets:
 configs:
   p0.leademailfinder.com.conf:
     file: configs/p0.leademailfinder.com.conf
-  p1.leademailfinder.com.conf:
-    file: configs/p1.leademailfinder.com.conf
   tuposoft.com.conf:
     file: configs/tuposoft.com.conf
 
