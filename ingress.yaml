@@ -17,7 +17,6 @@ services:
         target: /etc/nginx/conf.d/tuposoft.com.conf
     networks:
       - default
-      - verifier_v2_default
       - email_default
       - tuposoftcom_default
     deploy:
@@ -42,8 +41,6 @@ configs:
 
 networks:
   default:
-  verifier_v2_default:
-    external: true
   email_default:
     external: true
   tuposoftcom_default:
