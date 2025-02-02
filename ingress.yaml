@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:alpine
     ports:
       - "443:443"
     secrets:
@@ -12,7 +12,7 @@ services:
       - tuposoft.com.key.pem
     configs:
       - source: api.leademailfinder.com.conf
-        target: /etc/nginx/conf.d/p0.leademailfinder.com.conf
+        target: /etc/nginx/conf.d/api.leademailfinder.com.conf
       - source: tuposoft.com.conf
         target: /etc/nginx/conf.d/tuposoft.com.conf
     networks:
