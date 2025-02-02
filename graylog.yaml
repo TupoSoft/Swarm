@@ -3,7 +3,7 @@ version: '3.8'
 services:
   datanode_eu:
     hostname: 'datanode.eu.tuposoft.internal'
-    image: graylog/graylog-datanode:6.1
+    image: graylog/graylog-datanode:6.1.5
     environment:
       GRAYLOG_DATANODE_NODE_ID_FILE: /var/lib/graylog-datanode/node-id
       GRAYLOG_DATANODE_PASSWORD_SECRET__FILE: /run/secrets/graylog_password_secret
@@ -35,7 +35,7 @@ services:
 
   eu:
     hostname: 'graylog.eu.tuposoft.internal'
-    image: graylog/graylog:6.1
+    image: graylog/graylog:6.1.5
 #    disable the healthcheck for the initial setup
 #    healthcheck:
 #      disable: true
