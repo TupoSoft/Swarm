@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak
+    restart: unless-stopped
+    secrets:
+      - postgres_user
+      - postgres_password
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: postgres
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: /run/secrets/postgres_user
+      KC_DB_PASSWORD: /run/secrets/postgres_password
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    command: ["start-dev"]
+    ports:
+      - "8080:8080"
+    deploy:
+      replicas: 1
+
+secrets:
+  postgres_user:
+    external: true
+  postgres_password:
+    external: true
+
