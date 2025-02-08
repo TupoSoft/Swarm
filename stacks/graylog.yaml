@@ -44,10 +44,10 @@ services:
   eu:
     hostname: 'graylog.eu.tuposoft.internal'
     image: graylog/graylog:6.1.5
-#    disable the healthcheck for the initial setup
+    # disable the healthcheck for the initial setup
+    # noinspection ComposeMissingKeys
     healthcheck:
       disable: true
-      test: exit 0
     environment:
       GRAYLOG_PASSWORD_SECRET__FILE: /run/secrets/graylog_password_secret
       GRAYLOG_ROOT_PASSWORD_SHA2__FILE: /run/secrets/graylog_root_password_sha2
