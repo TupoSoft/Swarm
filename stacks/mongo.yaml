@@ -33,6 +33,14 @@ x-mongo: &mongo
     - mongo_root_username
     - mongo_root_password
     - mongo_url
+  deploy:
+    update_config:
+      delay: 5s
+      order: start-first
+      failure_action: rollback
+      monitor: 15s
+    rollback_config:
+      order: start-first
 
 services:
   mongo0:
@@ -77,9 +85,9 @@ services:
 
 configs:
   rs-initiate-2.js:
-    file: configs/rs-initiate.js
+    file: ../configs/rs-initiate.js
   db-create-user-2.js:
-    file: configs/db-create-user.js
+    file: ../configs/db-create-user.js
 
 secrets:
   mongo_keyfile:

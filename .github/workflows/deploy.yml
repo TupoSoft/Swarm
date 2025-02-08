@@ -1,0 +1,41 @@
+on:
+  schedule:
+    - '0 0 * * *'
+
+jobs:
+  get-stacks:
+    name: Get Stacks to Deploy
+    runs-on: ubuntu-latest
+    outputs:
+      stacks: ${{ steps.list-stacks.outputs.stacks }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: List Stacks
+        id: list-stacks
+        shell: sh
+        run: |
+          stacks=`ls stacks/ | jq -R -s -c 'split("\n")[:-1]'`
+          echo "stacks=$stacks" >> $GITHUB_OUTPUT
+
+  deploy-stack:
+    needs: get-stacks
+    name: Deploy Stack
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        stack_file: ${{ fromJSON(needs.get-stacks.outputs.stacks) }}
+    steps:
+      - name: Extract stack name
+        id: extract-stack-name
+        run: |
+          stack_name=`basename ${{ matrix.stack_file }} .yml`
+          stack_name=`basename ${{ matrix.stack_file }} .yaml`
+          echo "stack_name=$stack_name" >> $GITHUB_OUTPUT
+
+      - name: Deploy Stack
+        uses: TupoSoft/GitHubActions/.github/workflows/swarm-deploy.yml@master
+        with:
+          stack_name: ${{ steps.extract-stack-name.outputs.stack_name }}
+          stack_file: ${{ matrix.stack_file }}

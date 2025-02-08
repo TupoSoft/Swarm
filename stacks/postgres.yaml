@@ -23,6 +23,13 @@ services:
       placement:
         constraints:
           - node.role == worker
+      update_config:
+        delay: 5s
+        order: start-first
+        failure_action: rollback
+        monitor: 15s
+      rollback_config:
+        order: start-first
 
 volumes:
   postgres:

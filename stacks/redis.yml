@@ -21,6 +21,13 @@ services:
       placement:
         constraints:
           - node.hostname==manager-1
+      update_config:
+        delay: 5s
+        order: start-first
+        failure_action: rollback
+        monitor: 15s
+      rollback_config:
+        order: start-first
 
   replica_1:
     <<: *replica
@@ -67,6 +74,13 @@ services:
       placement:
         constraints:
           - node.hostname==manager-1
+      update_config:
+        delay: 5s
+        order: start-first
+        failure_action: rollback
+        monitor: 15s
+      rollback_config:
+        order: start-first
 
   sentinel_2:
     <<: *sentinel
@@ -89,7 +103,7 @@ volumes:
 
 configs:
   sentinel.conf:
-    file: configs/redis-sentinel.conf
+    file: ../configs/redis-sentinel.conf
 
 secrets:
   redis-password:
