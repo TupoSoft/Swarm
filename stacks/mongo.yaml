@@ -1,10 +1,9 @@
 version: '3.9'
 
-# Initial setup
-#x-config: &config
-#  mode: 0500
-#  uid: "999"
-#  gid: "999"
+x-config: &config
+  mode: 0500
+  uid: "999"
+  gid: "999"
 
 x-mongo: &mongo
   image: mongo:7
@@ -20,12 +19,11 @@ x-mongo: &mongo
     retries: 5
     start_period: 5s
     test: mongosh --eval "db.adminCommand('ping')"
-# Initial setup
-#  configs:
-#    - source: rs-initiate-2.js
-#      <<: *config
-#    - source: db-create-user-2.js
-#      <<: *config
+  configs:
+    - source: rs-initiate.js
+      <<: *config
+    - source: db-create-user.js
+      <<: *config
   secrets:
     - source: mongo_keyfile
       target: keyfile
@@ -84,12 +82,12 @@ services:
       placement:
         constraints:
           - node.hostname==manager-3
-# Initial setup
-#configs:
-#  rs-initiate-2.js:
-#    file: ../configs/rs-initiate.js
-#  db-create-user-2.js:
-#    file: ../configs/db-create-user.js
+
+configs:
+  rs-initiate.js:
+    file: ../configs/rs-initiate.js
+  db-create-user.js:
+    file: ../configs/db-create-user.js
 
 secrets:
   mongo_keyfile:
