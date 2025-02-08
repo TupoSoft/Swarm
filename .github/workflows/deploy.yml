@@ -37,8 +37,8 @@ jobs:
               continue
             fi 
           
-            stack_name=`basename "$file" .yaml`
-            stack_name=`basename "$file" .yml`
+            filename=`basename "$file"`
+            stack_name="${filename%.*}"
           
             if [ $stack_data != '[' ]
             then
