@@ -3,6 +3,7 @@ name: Deploy Stacks
 on:
   schedule:
     - cron: '0 0 * * *'
+  pull_request:
 
 jobs:
   get-stacks:
