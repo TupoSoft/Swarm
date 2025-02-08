@@ -8,7 +8,7 @@ jobs:
     name: Get Stacks to Deploy
     runs-on: ubuntu-latest
     outputs:
-      stack_data: ${{ steps.list-stacks.outputs.stack_data }}
+      stack_data: ${{ steps.process-stacks.outputs.stack_data }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
