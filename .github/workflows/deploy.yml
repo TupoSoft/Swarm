@@ -58,6 +58,7 @@ jobs:
     strategy:
       matrix:
         stack: ${{ fromJSON(needs.get-stacks.outputs.stack_data) }}
+      fail-fast: false
     uses: TupoSoft/GitHubActions/.github/workflows/swarm-deploy.yml@master
     with:
       stack_name: ${{ matrix.stack.stack_name }}
