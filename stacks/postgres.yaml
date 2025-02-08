@@ -3,7 +3,6 @@ version: '3.8'
 services:
   postgres:
     image: postgres:17-alpine
-    restart: unless-stopped
     volumes:
       - postgres:/var/lib/postgresql/data
       - type: tmpfs
