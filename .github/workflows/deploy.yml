@@ -1,6 +1,7 @@
 on:
   schedule:
     - '0 0 * * *'
+  pull_request:
 
 jobs:
   get-stacks:
