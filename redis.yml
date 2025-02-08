@@ -30,6 +30,8 @@ services:
         --requirepass `cat /run/secrets/redis-password` 
         --masterauth `cat /run/secrets/redis-password`
         --appendonly yes"
+    ports:
+      - "6380:6379"
     deploy:
       placement:
         constraints:
@@ -38,6 +40,8 @@ services:
   replica_2:
     <<: *replica
     command: *replica-command
+    ports:
+      - "6381:6379"
     deploy:
       placement:
         constraints:
