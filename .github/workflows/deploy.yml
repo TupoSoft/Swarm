@@ -49,7 +49,7 @@ jobs:
           
           stack_data="${stack_data}]"
           
-          echo "stack_data=$stack_data" >> $GITHUB_OUTPUT
+          echo "stack_data=$stack_data" >> "$GITHUB_OUTPUT"
 
   deploy-stack:
     needs: get-stacks
