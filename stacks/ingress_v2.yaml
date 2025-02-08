@@ -21,6 +21,13 @@ services:
       - tuposoftcom_default
     deploy:
       mode: global
+      update_config:
+        parallelism: 1
+        order: start-first
+        failure_action: rollback
+        monitor: 15s
+      rollback_config:
+        order: start-first
 
 secrets:
   p1.leademailfinder.com.cert.pem:
@@ -34,9 +41,9 @@ secrets:
 
 configs:
   api.leademailfinder.com.v2.conf:
-    file: configs/api.leademailfinder.com.v2.conf
+    file: ../configs/api.leademailfinder.com.v2.conf
   tuposoft.com.conf:
-    file: configs/tuposoft.com.conf
+    file: ../configs/tuposoft.com.conf
 
 
 networks:

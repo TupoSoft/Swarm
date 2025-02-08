@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
   primary: &replica
-    image: redis:7-alpine
+    image: redis@sha256:1bf97f21f01b0e7bd4b7b34a26d3b9d8086e41e70c10f262e8a9e0b49b5116a0
     healthcheck:
       test: redis-cli --raw incr ping
     volumes:
@@ -21,9 +21,17 @@ services:
       placement:
         constraints:
           - node.hostname==manager-1
+      update_config:
+        delay: 5s
+        order: start-first
+        failure_action: rollback
+        monitor: 15s
+      rollback_config:
+        order: start-first
 
   replica_1:
     <<: *replica
+    image: redis@sha256:1bf97f21f01b0e7bd4b7b34a26d3b9d8086e41e70c10f262e8a9e0b49b5116a0
     command: &replica-command >
         sh -c "redis-server
         --replicaof primary 6379
@@ -39,6 +47,7 @@ services:
 
   replica_2:
     <<: *replica
+    image: redis@sha256:1bf97f21f01b0e7bd4b7b34a26d3b9d8086e41e70c10f262e8a9e0b49b5116a0
     command: *replica-command
     ports:
       - "6381:6379"
@@ -48,7 +57,7 @@ services:
           - node.hostname==manager-3
 
   sentinel_1: &sentinel
-    image: redis:7-alpine
+    image: redis@sha256:1bf97f21f01b0e7bd4b7b34a26d3b9d8086e41e70c10f262e8a9e0b49b5116a0
     healthcheck:
       test: redis-cli -p 26379 --raw incr ping
     configs:
@@ -67,9 +76,17 @@ services:
       placement:
         constraints:
           - node.hostname==manager-1
+      update_config:
+        delay: 5s
+        order: start-first
+        failure_action: rollback
+        monitor: 15s
+      rollback_config:
+        order: start-first
 
   sentinel_2:
     <<: *sentinel
+    image: redis@sha256:1bf97f21f01b0e7bd4b7b34a26d3b9d8086e41e70c10f262e8a9e0b49b5116a0
     deploy:
       replicas: 1
       placement:
@@ -78,6 +95,7 @@ services:
 
   sentinel_3:
     <<: *sentinel
+    image: redis@sha256:1bf97f21f01b0e7bd4b7b34a26d3b9d8086e41e70c10f262e8a9e0b49b5116a0
     deploy:
       replicas: 1
       placement:
@@ -89,7 +107,7 @@ volumes:
 
 configs:
   sentinel.conf:
-    file: configs/redis-sentinel.conf
+    file: ../configs/redis-sentinel.conf
 
 secrets:
   redis-password:

@@ -3,7 +3,7 @@ version: '3.8'
 services:
   datanode_eu:
     hostname: 'datanode.eu.tuposoft.internal'
-    image: graylog/graylog-datanode:6.1.5
+    image: graylog/graylog-datanode:6.1
     environment:
       GRAYLOG_DATANODE_NODE_ID_FILE: /var/lib/graylog-datanode/node-id
       GRAYLOG_DATANODE_PASSWORD_SECRET__FILE: /run/secrets/graylog_password_secret
@@ -29,14 +29,23 @@ services:
       - mongo_default
     deploy:
       replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 5s
+        order: start-first
+        failure_action: rollback
+        monitor: 15s
+      rollback_config:
+        order: start-first
       placement:
         constraints:
           - node.role == worker
 
   eu:
     hostname: 'graylog.eu.tuposoft.internal'
-    image: graylog/graylog:6.1.5
-#    disable the healthcheck for the initial setup
+    image: graylog/graylog:6.1
+# disable the healthcheck for the initial setup
+# noinspection ComposeMissingKeys
 #    healthcheck:
 #      disable: true
     environment:
@@ -54,6 +63,14 @@ services:
     networks: *networks
     deploy:
       replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 5s
+        order: start-first
+        failure_action: rollback
+        monitor: 15s
+      rollback_config:
+        order: start-first
       placement:
         constraints:
           - node.role == worker

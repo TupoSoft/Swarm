@@ -3,7 +3,6 @@ version: '3.8'
 services:
   postgres:
     image: postgres:17-alpine
-    restart: unless-stopped
     volumes:
       - postgres:/var/lib/postgresql/data
       - type: tmpfs
@@ -23,6 +22,13 @@ services:
       placement:
         constraints:
           - node.role == worker
+      update_config:
+        delay: 5s
+        order: start-first
+        failure_action: rollback
+        monitor: 15s
+      rollback_config:
+        order: start-first
 
 volumes:
   postgres:

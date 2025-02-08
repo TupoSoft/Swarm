@@ -1,0 +1,65 @@
+name: Deploy Stacks
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  get-stacks:
+    name: Get Stacks to Deploy
+    runs-on: ubuntu-latest
+    outputs:
+      stack_data: ${{ steps.process-stacks.outputs.stack_data }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Process Stacks
+        id: process-stacks
+        shell: sh
+        run: |
+          set -eu
+          
+          stack_data='['
+          
+          if [ ! -d 'stacks' ]
+          then
+            echo "Directory 'stacks' not found. No stacks to deploy."
+            echo "stack_data=[]" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          
+          for file in stacks/*
+          do
+            if [ ! -f "$file" ]
+            then
+              continue
+            fi 
+          
+            filename=`basename "$file"`
+            stack_name="${filename%.*}"
+          
+            if [ $stack_data != '[' ]
+            then
+              stack_data="${stack_data},"
+            fi
+          
+            stack_data="${stack_data}{\"stack_name\":\"$stack_name\",\"stack_file\":\"$file\"}"
+          done
+          
+          stack_data="${stack_data}]"
+          
+          echo "stack_data=$stack_data" >> "$GITHUB_OUTPUT"
+
+  deploy-stack:
+    needs: get-stacks
+    name: Deploy Stack
+    strategy:
+      matrix:
+        stack: ${{ fromJSON(needs.get-stacks.outputs.stack_data) }}
+      fail-fast: false
+    uses: TupoSoft/GitHubActions/.github/workflows/swarm-deploy.yml@master
+    with:
+      stack_name: ${{ matrix.stack.stack_name }}
+      stack_file: ${{ matrix.stack.stack_file }}
+    secrets: inherit

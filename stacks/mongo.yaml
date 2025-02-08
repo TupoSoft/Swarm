@@ -6,8 +6,6 @@ x-config: &config
   gid: "999"
 
 x-mongo: &mongo
-  image: mongo:7
-  restart: unless-stopped
   command: [ "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/run/secrets/keyfile" ]
   environment:
     MONGO_URL_FILE: /run/secrets/mongo_url
@@ -20,9 +18,9 @@ x-mongo: &mongo
     start_period: 5s
     test: mongosh --eval "db.adminCommand('ping')"
   configs:
-    - source: rs-initiate-2.js
+    - source: rs-initiate.js
       <<: *config
-    - source: db-create-user-2.js
+    - source: db-create-user.js
       <<: *config
   secrets:
     - source: mongo_keyfile
@@ -33,10 +31,16 @@ x-mongo: &mongo
     - mongo_root_username
     - mongo_root_password
     - mongo_url
+  deploy:
+    update_config:
+      delay: 5s
+      failure_action: rollback
+      monitor: 15s
 
 services:
   mongo0:
     <<: *mongo
+    image: mongo@sha256:e557aa97915d4d0ca4fb9ecf90e55dc4006faa973c7718c1529df325c64342ad
     volumes:
       - mongo0-data:/data/db
       - mongo0-config:/data/configdb
@@ -48,9 +52,9 @@ services:
         constraints:
           - node.hostname==manager-1
 
-
   mongo1:
     <<: *mongo
+    image: mongo@sha256:e557aa97915d4d0ca4fb9ecf90e55dc4006faa973c7718c1529df325c64342ad
     volumes:
       - mongo1-data:/data/db
       - mongo1-config:/data/configdb
@@ -64,6 +68,7 @@ services:
 
   mongo2:
     <<: *mongo
+    image: mongo@sha256:e557aa97915d4d0ca4fb9ecf90e55dc4006faa973c7718c1529df325c64342ad
     ports:
       - "27019:27017"
     volumes:
@@ -76,10 +81,10 @@ services:
           - node.hostname==manager-3
 
 configs:
-  rs-initiate-2.js:
-    file: configs/rs-initiate.js
-  db-create-user-2.js:
-    file: configs/db-create-user.js
+  rs-initiate.js:
+    file: ../configs/rs-initiate.js
+  db-create-user.js:
+    file: ../configs/db-create-user.js
 
 secrets:
   mongo_keyfile:
