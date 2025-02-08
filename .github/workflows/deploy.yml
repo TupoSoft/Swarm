@@ -14,7 +14,6 @@ jobs:
 
       - name: List Stacks
         id: list-stacks
-        shell: sh
         run: |
           stacks=`ls stacks/ | jq -R -s -c 'split("\n")[:-1]'`
           echo "stacks=$stacks" >> $GITHUB_OUTPUT
