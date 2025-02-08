@@ -8,34 +8,56 @@ jobs:
     name: Get Stacks to Deploy
     runs-on: ubuntu-latest
     outputs:
-      stacks: ${{ steps.list-stacks.outputs.stacks }}
+      stack_data: ${{ steps.list-stacks.outputs.stack_data }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: List Stacks
-        id: list-stacks
+      - name: Process Stacks
+        id: process-stacks
+        shell: sh
         run: |
-          stacks=`ls stacks/ | jq -R -s -c 'split("\n")[:-1]'`
-          echo "stacks=$stacks" >> $GITHUB_OUTPUT
+          set -eu
+          
+          stack_data='['
+          
+          if [ ! -d 'stacks' ]
+          then
+            echo "Directory 'stacks' not found. No stacks to deploy."
+            echo "stack_data=[]" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          
+          for file in stacks/*
+          do
+            if [ ! -f "$file" ]
+            then
+              continue
+            fi 
+          
+            stack_name=`basename "$file" .yaml`
+            stack_name=`basename "$file" .yml`
+          
+            if [ $stack_data != '[' ]
+            then
+              stack_data="${stack_data},"
+            fi
+          
+            stack_data="${stack_data}{\"stack_name\":\"$stack_name\",\"stack_file\":\"$file\"}"
+          done
+          
+          stack_data="${stack_data}]"
+          
+          echo "stack_data=$stack_data" >> $GITHUB_OUTPUT
 
   deploy-stack:
     needs: get-stacks
     name: Deploy Stack
-    runs-on: ubuntu-latest
     strategy:
       matrix:
-        stack_file: ${{ fromJSON(needs.get-stacks.outputs.stacks) }}
-    steps:
-      - name: Extract stack name
-        id: extract-stack-name
-        run: |
-          stack_name=`basename ${{ matrix.stack_file }} .yml`
-          stack_name=`basename ${{ matrix.stack_file }} .yaml`
-          echo "stack_name=$stack_name" >> $GITHUB_OUTPUT
-
-      - name: Deploy Stack
-        uses: TupoSoft/GitHubActions/.github/workflows/swarm-deploy.yml@master
-        with:
-          stack_name: ${{ steps.extract-stack-name.outputs.stack_name }}
-          stack_file: ${{ matrix.stack_file }}
+        stack: ${{ fromJSON(needs.get-stacks.outputs.stack_data) }}
+    uses: TupoSoft/GitHubActions/.github/workflows/swarm-deploy.yml@master
+    with:
+      stack_name: ${{ matrix.stack.stack_name }}
+      stack_file: ${{ matrix.stack.stack_file }}
+    secrets: inherit
