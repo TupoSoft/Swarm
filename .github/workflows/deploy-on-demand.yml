@@ -1,4 +1,4 @@
-name: Deploy Stacks on demand
+name: Deploy Stacks on Demand
 
 on:
   workflow_dispatch:

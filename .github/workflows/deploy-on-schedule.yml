@@ -1,4 +1,4 @@
-name: Scheduled Stacks Deployment
+name: Deploy Stacks on Schedule
 
 on:
   schedule:
