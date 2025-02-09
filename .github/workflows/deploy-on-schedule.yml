@@ -67,4 +67,4 @@ jobs:
       stack_file: ${{ matrix.stack.stack_file }}
     secrets: inherit
     concurrency:
-      group: ${{ matrix.stack.stack_name }}
+      group: deploy-stack-${{ matrix.stack.stack_name }}
