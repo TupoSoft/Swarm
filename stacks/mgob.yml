@@ -7,12 +7,13 @@ services:
     command:
       - -c
       - |
-        export BACKUP__TARGET_URI=`cat /run/secrets/mongo_url`
+        export MONGO_BACKUP__TARGET_URI=`cat /run/secrets/mongo_url`
         /usr/local/bin/mgob
     networks:
       - mongo_default
     secrets:
-      - mgob_mongo_backup
+      - source: mgob_mongo_backup
+        target: /config/mongo_backup.yml
       - mongo_url
 
 secrets:
