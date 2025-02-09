@@ -1,0 +1,22 @@
+name: Deploy Stacks on demand
+
+on:
+  workflow_dispatch:
+    inputs:
+      stacks:
+        type: string
+        description: Comma-separated list of stacks to deploy
+        required: true
+
+jobs:
+  deploy-stack:
+    name: Deploy Stack
+    strategy:
+      matrix:
+        stack: ${{ fromJSON(format('[{0}]', inputs.stacks)) }}
+      fail-fast: false
+    uses: TupoSoft/GitHubActions/.github/workflows/swarm-deploy.yml@master
+    with:
+      stack_name: ${{ matrix.stack }}
+      stack_file: stacks/${{ matrix.stack }}.yml
+    secrets: inherit
