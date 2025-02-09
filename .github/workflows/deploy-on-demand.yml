@@ -12,11 +12,25 @@ concurrency:
   group: deploy-stacks-${{ github.repository }}
 
 jobs:
+  parse-stack-list:
+    name: Prepare Stack Set for Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      stacks: ${{ steps.parse.outputs.stacks }}
+    steps:
+      - name: Convert comma-separated input to JSON array
+        id: parse
+        shell: sh
+        run: |
+          stacks=`echo -n "${{ inputs.stacks }}" | jq -Rsc 'split(",") | map(gsub("^[ \t]+|[ \t]+$"; ""))'`
+          echo "stacks=$stacks" >> "$GITHUB_OUTPUT"
+
   deploy-stack:
+    needs: parse-stack-list
     name: Deploy Stack
     strategy:
       matrix:
-        stack: ${{ fromJSON(format('[{0}]', inputs.stacks)) }}
+        stack: ${{ fromJSON(needs.parse-stack-list.outputs.stacks) }}
       fail-fast: false
     uses: TupoSoft/GitHubActions/.github/workflows/swarm-deploy.yml@master
     with:
@@ -24,4 +38,4 @@ jobs:
       stack_file: stacks/${{ matrix.stack }}.yml
     secrets: inherit
     concurrency:
-      group: ${{ matrix.stack }}
+      group: deploy-stack-${{ matrix.stack }}
