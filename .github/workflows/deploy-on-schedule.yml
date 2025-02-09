@@ -1,8 +1,11 @@
-name: Deploy Stacks
+name: Deploy Stacks on Schedule
 
 on:
   schedule:
     - cron: '0 0 * * *'
+
+concurrency:
+  group: deploy-stacks-${{ github.repository }}
 
 jobs:
   get-stacks:
@@ -63,3 +66,5 @@ jobs:
       stack_name: ${{ matrix.stack.stack_name }}
       stack_file: ${{ matrix.stack.stack_file }}
     secrets: inherit
+    concurrency:
+      group: ${{ matrix.stack.stack_name }}
