@@ -1,0 +1,26 @@
+version: '3.9'
+
+services:
+  mgob:
+    image: maxisam/mgob:2.0.27-minio
+    entrypoint: sh
+    command:
+      - -c
+      - |
+        export BACKUP__TARGET_URI=`cat /run/secrets/mongo_url`
+        /usr/local/bin/mgob
+    networks:
+      - mongo_default
+    secrets:
+      - mgob_mongo_backup
+      - mongo_url
+
+secrets:
+  mgob_mongo_backup:
+    external: true
+  mongo_url:
+    external: true
+
+networks:
+  mongo_default:
+    external: true
