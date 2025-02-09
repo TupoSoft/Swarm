@@ -80,6 +80,19 @@ services:
         constraints:
           - node.hostname==manager-3
 
+  mgob:
+    image: maxisam/mgob:2.0.27-minio
+    entrypoint: sh
+    command:
+      - -c
+      - |
+        export MONGO_BACKUP__TARGET_URI=`cat /run/secrets/mongo_url`
+        /usr/local/bin/mgob
+    secrets:
+      - source: mgob_mongo_backup
+        target: /config/mongo_backup.yml
+      - mongo_url
+
 configs:
   rs-initiate.js:
     file: ../configs/rs-initiate.js
@@ -94,6 +107,8 @@ secrets:
   mongo_root_password:
     external: true
   mongo_url:
+    external: true
+  mgob_mongo_backup:
     external: true
 
 volumes:
