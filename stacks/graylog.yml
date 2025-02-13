@@ -39,7 +39,7 @@ services:
         order: start-first
       placement:
         constraints:
-          - node.role == worker
+          - node.hostname == manager-1
 
   eu:
     hostname: 'graylog.eu.tuposoft.internal'
@@ -73,7 +73,7 @@ services:
         order: start-first
       placement:
         constraints:
-          - node.role == worker
+          - node.hostname == manager-1
 
 secrets:
   graylog_root_username:
