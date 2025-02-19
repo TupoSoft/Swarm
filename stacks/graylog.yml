@@ -24,6 +24,7 @@ services:
       - graylog_mongodb_uri
     volumes:
       - datanode-data-eu:/var/lib/graylog-datanode
+      - /etc/localtime:/etc/localtime:ro
     networks: &networks
       - graylog
       - mongo_default
