@@ -24,7 +24,6 @@ services:
       - graylog_mongodb_uri
     volumes:
       - datanode-data-eu:/var/lib/graylog-datanode
-      - /etc/localtime:/etc/localtime:ro
     networks: &networks
       - graylog
       - mongo_default
@@ -40,7 +39,7 @@ services:
         order: start-first
       placement:
         constraints:
-          - node.role == worker
+          - node.hostname==manager-1
 
   eu:
     hostname: 'graylog.eu.tuposoft.internal'
