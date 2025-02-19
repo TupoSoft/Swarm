@@ -54,6 +54,7 @@ services:
       GRAYLOG_ROOT_USERNAME__FILE: /run/secrets/graylog_root_username
       GRAYLOG_MONGODB_URI__FILE: /run/secrets/graylog_mongodb_uri
       GRAYLOG_NODE_ID_FILE: /usr/share/graylog/data/config/node-id
+      GRAYLOG_STALE_MASTER_TIMEOUT: 30000
     ports:
       - "9000:9000"
     volumes:
