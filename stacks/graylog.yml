@@ -46,8 +46,12 @@ services:
     image: graylog/graylog:6.1
 # disable the healthcheck for the initial setup
 # noinspection ComposeMissingKeys
-#    healthcheck:
-#      disable: true
+    healthcheck:
+      test: ["CMD-SHELL", "/health_check.sh"]
+      interval: 1m
+      start_period: 5m
+      timeout: 30s
+      retries: 5
     environment:
       GRAYLOG_PASSWORD_SECRET__FILE: /run/secrets/graylog_password_secret
       GRAYLOG_ROOT_PASSWORD_SHA2__FILE: /run/secrets/graylog_root_password_sha2
