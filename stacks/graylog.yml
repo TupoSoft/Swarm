@@ -62,8 +62,7 @@ services:
     ports:
       - "9000:9000"
     volumes:
-      - graylog-data-eu:/usr/share/graylog/data/data
-      - graylog-journal-eu:/usr/share/graylog/data/journal
+      - graylog-data-eu:/usr/share/graylog/data
     secrets: *secrets
     networks: *networks
     deploy:
@@ -78,7 +77,7 @@ services:
         order: start-first
       placement:
         constraints:
-          - node.role == worker
+          - node.hostname==manager-1
 
 secrets:
   graylog_root_username:
@@ -93,7 +92,6 @@ secrets:
 volumes:
   datanode-data-eu:
   graylog-data-eu:
-  graylog-journal-eu:
 
 networks:
   graylog:
