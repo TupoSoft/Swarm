@@ -41,8 +41,10 @@ secrets:
 
 configs:
   api.leademailfinder.com.conf:
+    name: api.leademailfinder.com.conf-${GITHUB_RUN_ID}
     file: ../configs/api.leademailfinder.com.conf
   tuposoft.com.conf:
+    name: tuposoft.com.conf-${GITHUB_RUN_ID}
     file: ../configs/tuposoft.com.conf
 
 

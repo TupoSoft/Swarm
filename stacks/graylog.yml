@@ -39,15 +39,19 @@ services:
         order: start-first
       placement:
         constraints:
-          - node.role == worker
+          - node.hostname==manager-1
 
   eu:
     hostname: 'graylog.eu.tuposoft.internal'
     image: graylog/graylog:6.1
 # disable the healthcheck for the initial setup
 # noinspection ComposeMissingKeys
-#    healthcheck:
-#      disable: true
+    healthcheck:
+      test: ["CMD-SHELL", "/health_check.sh"]
+      interval: 1m
+      start_period: 5m
+      timeout: 30s
+      retries: 5
     environment:
       GRAYLOG_PASSWORD_SECRET__FILE: /run/secrets/graylog_password_secret
       GRAYLOG_ROOT_PASSWORD_SHA2__FILE: /run/secrets/graylog_root_password_sha2
@@ -57,8 +61,7 @@ services:
     ports:
       - "9000:9000"
     volumes:
-      - graylog-data-eu:/usr/share/graylog/data/data
-      - graylog-journal-eu:/usr/share/graylog/data/journal
+      - graylog-data-eu:/usr/share/graylog/data
     secrets: *secrets
     networks: *networks
     deploy:
@@ -66,14 +69,14 @@ services:
       update_config:
         parallelism: 1
         delay: 5s
-        order: start-first
+        order: stop-first
         failure_action: rollback
         monitor: 15s
       rollback_config:
         order: start-first
       placement:
         constraints:
-          - node.role == worker
+          - node.hostname==manager-1
 
 secrets:
   graylog_root_username:
@@ -83,12 +86,12 @@ secrets:
   graylog_password_secret:
     external: true
   graylog_mongodb_uri:
+    name: graylog_mongodb_uri_w1
     external: true
 
 volumes:
   datanode-data-eu:
   graylog-data-eu:
-  graylog-journal-eu:
 
 networks:
   graylog:
