@@ -39,15 +39,19 @@ jobs:
               continue
             fi 
           
-            filename=`basename "$file"`
-            stack_name="${filename%.*}"
-          
-            if [ $stack_data != '[' ]
-            then
-              stack_data="${stack_data},"
-            fi
-          
-            stack_data="${stack_data}{\"stack_name\":\"$stack_name\",\"stack_file\":\"$file\"}"
+            case "$file" in  
+              *.yml|*.yaml)
+                filename=`basename "$file"`
+                stack_name="${filename%.*}"
+              
+                if [ $stack_data != '[' ]
+                then
+                  stack_data="${stack_data},"
+                fi
+              
+                stack_data="${stack_data}{\"stack_name\":\"$stack_name\",\"stack_file\":\"$file\"}"
+              ;;
+            esac
           done
           
           stack_data="${stack_data}]"
