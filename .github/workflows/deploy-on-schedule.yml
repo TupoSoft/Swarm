@@ -32,7 +32,7 @@ jobs:
             exit 0
           fi
           
-          for file in stacks/*.{yml,yaml}
+          for file in stacks/*
           do
             if [ ! -f "$file" ]
             then
