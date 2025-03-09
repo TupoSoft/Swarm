@@ -11,7 +11,10 @@ services:
       - redis-password
     command: >
         sh -c "redis-server
-        --requirepass `cat /run/secrets/redis-password` 
+        --port 6379
+        --replica-announce-ip 192.168.2.1
+        --replica-announce-port 6379
+        --requirepass `cat /run/secrets/redis-password`
         --masterauth `cat /run/secrets/redis-password`
         --appendonly yes"
     ports:
@@ -32,14 +35,19 @@ services:
   replica_1:
     <<: *replica
     image: redis@sha256:1bf97f21f01b0e7bd4b7b34a26d3b9d8086e41e70c10f262e8a9e0b49b5116a0
-    command: &replica-command >
+    healthcheck:
+      test: redis-cli -p 6380 --raw incr ping
+    command: >
         sh -c "redis-server
-        --replicaof primary 6379
-        --requirepass `cat /run/secrets/redis-password` 
+        --port 6380
+        --replica-announce-ip 192.168.2.2
+        --replica-announce-port 6380
+        --replicaof 192.168.2.1 6379
+        --requirepass `cat /run/secrets/redis-password`
         --masterauth `cat /run/secrets/redis-password`
         --appendonly yes"
     ports:
-      - "6380:6379"
+      - "6380:6380"
     deploy:
       placement:
         constraints:
@@ -48,9 +56,19 @@ services:
   replica_2:
     <<: *replica
     image: redis@sha256:1bf97f21f01b0e7bd4b7b34a26d3b9d8086e41e70c10f262e8a9e0b49b5116a0
-    command: *replica-command
+    healthcheck:
+      test: redis-cli -p 6381 --raw incr ping
+    command: >
+      sh -c "redis-server
+      --port 6381
+      --replica-announce-ip 192.168.2.3
+      --replica-announce-port 6381
+      --replicaof 192.168.2.1 6379
+      --requirepass `cat /run/secrets/redis-password` 
+      --masterauth `cat /run/secrets/redis-password`
+      --appendonly yes"
     ports:
-      - "6381:6379"
+      - "6381:6381"
     deploy:
       placement:
         constraints:
@@ -59,18 +77,26 @@ services:
   sentinel_1: &sentinel
     image: redis@sha256:1bf97f21f01b0e7bd4b7b34a26d3b9d8086e41e70c10f262e8a9e0b49b5116a0
     healthcheck:
-      test: redis-cli -p 26379 --raw incr ping
-    configs:
-      - sentinel.conf
+      test: redis-cli -p $$SENTINEL_PORT ping
     secrets:
       - redis-password
-    entrypoint: sh -c
-    command:
-      - |
-        REDIS_PASSWORD=`cat /run/secrets/redis-password`
-        cp /sentinel.conf /redis-sentinel.conf
-        echo "sentinel auth-pass mymaster $$REDIS_PASSWORD" >> /redis-sentinel.conf
-        redis-sentinel /redis-sentinel.conf
+    environment:
+      SENTINEL_IP: 192.168.2.1
+      SENTINEL_PORT: 5000
+    ports:
+      - "5000:5000"
+    command: >
+      sh -c '
+        echo "port $$SENTINEL_PORT" >> /etc/sentinel.conf &&
+        echo "sentinel announce-ip $$SENTINEL_IP" >> /etc/sentinel.conf &&
+        echo "sentinel announce-port $$SENTINEL_PORT" >> /etc/sentinel.conf &&
+        echo "sentinel monitor mymaster 192.168.2.1 6379 2" >> /etc/sentinel.conf &&
+        echo "sentinel down-after-milliseconds mymaster 5000" >> /etc/sentinel.conf &&
+        echo "sentinel failover-timeout mymaster 60000" >> /etc/sentinel.conf &&
+        echo "sentinel parallel-syncs mymaster 1" >> /etc/sentinel.conf &&
+        echo "sentinel auth-pass mymaster `cat /run/secrets/redis-password`" >> /etc/sentinel.conf &&
+        redis-sentinel /etc/sentinel.conf
+      '
     deploy:
       replicas: 1
       placement:
@@ -87,6 +113,11 @@ services:
   sentinel_2:
     <<: *sentinel
     image: redis@sha256:1bf97f21f01b0e7bd4b7b34a26d3b9d8086e41e70c10f262e8a9e0b49b5116a0
+    environment:
+      SENTINEL_IP: 192.168.2.2
+      SENTINEL_PORT: 5001
+    ports:
+      - "5001:5001"
     deploy:
       replicas: 1
       placement:
@@ -96,6 +127,11 @@ services:
   sentinel_3:
     <<: *sentinel
     image: redis@sha256:1bf97f21f01b0e7bd4b7b34a26d3b9d8086e41e70c10f262e8a9e0b49b5116a0
+    environment:
+      SENTINEL_IP: 192.168.2.3
+      SENTINEL_PORT: 5002
+    ports:
+      - "5002:5002"
     deploy:
       replicas: 1
       placement:
@@ -104,10 +140,6 @@ services:
 
 volumes:
   redis-data:
-
-configs:
-  sentinel.conf:
-    file: ../configs/redis-sentinel.conf
 
 secrets:
   redis-password:
