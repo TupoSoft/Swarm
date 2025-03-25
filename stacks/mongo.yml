@@ -68,7 +68,7 @@ services:
 
   mongo2:
     <<: *mongo
-    image: mongo@sha256:7bd28e5eea1c5766a084d5818254046f3ebe3b8f20a65e3a274640189e296667
+    image: mongo@sha256:e557aa97915d4d0ca4fb9ecf90e55dc4006faa973c7718c1529df325c64342ad
     ports:
       - "27019:27017"
     volumes:
