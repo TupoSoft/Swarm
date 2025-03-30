@@ -109,6 +109,7 @@ secrets:
   mongo_url:
     external: true
   mgob_mongo_backup:
+    name: mgob_mongo_backup_v2
     external: true
 
 volumes:
