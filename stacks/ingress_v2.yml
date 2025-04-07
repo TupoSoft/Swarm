@@ -19,6 +19,9 @@ services:
       - default
       - email_default
       - tuposoftcom_default
+    healthcheck:
+      test: ["CMD-SHELL", "curl -so /dev/null http://localhost/ || exit 1"]
+      timeout: 10s
     deploy:
       mode: global
       update_config:
