@@ -66,6 +66,7 @@ services:
       --replica-announce-ip 192.168.2.3
       --replica-announce-port 6381
       --replicaof 192.168.2.1 6379
+      --replica-priority 3
       --requirepass `cat /run/secrets/redis-password` 
       --masterauth `cat /run/secrets/redis-password`
       --appendonly yes"
