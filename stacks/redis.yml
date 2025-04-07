@@ -14,6 +14,7 @@ services:
         --port 6379
         --replica-announce-ip 192.168.2.1
         --replica-announce-port 6379
+        --replica-priority 1
         --requirepass `cat /run/secrets/redis-password`
         --masterauth `cat /run/secrets/redis-password`
         --appendonly yes"
