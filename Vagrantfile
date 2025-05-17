@@ -9,22 +9,12 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       ip_last = idx + 11
       node.vm.network "private_network", ip: "192.168.56.#{ip_last}"
 
-      node.vm.provider "virtualbox" do |vb|
-        vb.memory = 1024
-        vb.cpus   = 1
-        vb.gui    = false
-      end
-
       node.vm.provision "shell", inline: <<-SHELL
         curl -fsSL https://get.docker.com -o get-docker.sh
         sh ./get-docker.sh
-      SHELL
-
-      node.vm.provision "shell", privileged: false, inline: <<-SHELL
         groupadd -f docker
-        usermod -aG docker $USER
+        usermod -aG docker vagrant
         newgrp docker
-        docker run hello-world
       SHELL
 
       if name == 'manager-1'
