@@ -5,6 +5,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 # Ensure base system is up-to-date and install base dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    openssh-client \
     curl \
     git \
     jq \
