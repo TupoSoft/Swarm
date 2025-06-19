@@ -1,0 +1,43 @@
+# docker-stack.yml
+version: "3.8"
+
+services:
+  actions-runner:
+    image: gh-actions-runner:latest
+    deploy:
+      replicas: 3
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    secrets:
+      - gh_runner_token
+    configs:
+      - source: runner_entrypoint
+        target: /entrypoint.sh
+        mode: 0755
+    environment:
+      RUNNER_ORG: "TupoSoft"
+      RUNNER_LABELS: "swarm,ubuntu-22"
+      SECRET_FILE_PATH: "/run/secrets/gh_runner_token"
+    volumes:
+      - runner_work:/actions-runner/_work
+    entrypoint: [ "/entrypoint.sh" ]
+
+secrets:
+  gh_runner_token:
+    name: gh_runner_token
+    external: true
+
+configs:
+  runner_entrypoint:
+    name: github_actions_runner_entrypoint_${GITHUB_RUN_ID}.sh
+    file: ../gh-actions-runner/entrypoint.sh
+
+volumes:
+  runner_work:
