@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 set -e
 
-HOST_DOCKER_SOCK_GID=$(stat -c "%g" /var/run/docker.sock)
-
-groupadd -g "$HOST_DOCKER_SOCK_GID" -f docker
-usermod -aG docker runner
-
 if [[ -f "$GH_PAT_SECRET_FILE_PATH" ]]; then
   GH_PAT="$(cat "$GH_PAT_SECRET_FILE_PATH")"
 else
