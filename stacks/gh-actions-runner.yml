@@ -43,7 +43,7 @@ services:
 
 secrets:
   gh_runner_token:
-    name: gh_runner_token
+    name: gh_runner_token_19062025
     external: true
 
 configs:
