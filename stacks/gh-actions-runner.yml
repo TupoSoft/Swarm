@@ -5,6 +5,7 @@ version: "3.8"
 services:
   actions-runner:
     image: ghcr.io/tuposoft/gh-actions-runner:latest
+    privileged: true
     deploy:
       replicas: 3
       update_config:
