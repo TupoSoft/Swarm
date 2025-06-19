@@ -10,7 +10,6 @@ else
   exit 1
 fi
 
-
 if [[ -n "$RUNNER_REPO" ]]; then
   RUNNER_URL="https://github.com/${RUNNER_REPO}"
 elif [[ -n "$RUNNER_ORG" ]]; then
