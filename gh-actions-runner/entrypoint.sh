@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 set -e
-set -o pipefail
-set -x
 
 if [[ -f "$SECRET_FILE_PATH" ]]; then
   RUNNER_TOKEN="$(cat "$SECRET_FILE_PATH")"
