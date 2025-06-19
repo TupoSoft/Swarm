@@ -19,4 +19,4 @@ jobs:
       image-name: gh-actions-runner
       dockerfile: gh-actions-runner/Dockerfile
       build-args: |
-        RUNNER_VERSION="2.325.0"
+        RUNNER_VERSION=2.325.0
