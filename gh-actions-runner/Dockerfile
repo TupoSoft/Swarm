@@ -19,8 +19,8 @@ RUN apt-get update \
     gzip \
     && rm -rf /var/lib/apt/lists/* \
     && useradd -m runner \
-    && mkdir /actions-runner \
-    && chown runner:runner /actions-runner
+    && mkdir -p /actions-runner/_work \
+    && chown -R runner:runner /actions-runner
 
 WORKDIR /actions-runner
 
