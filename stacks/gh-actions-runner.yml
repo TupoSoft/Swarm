@@ -1,4 +1,5 @@
-# docker-stack.yml
+#file: noinspection ComposeUnknownValues, line 46
+
 version: "3.8"
 
 services:
@@ -6,6 +7,14 @@ services:
     image: gh-actions-runner:latest
     deploy:
       replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 5s
+        order: stop-first
+        failure_action: rollback
+        monitor: 15s
+      rollback_config:
+        order: start-first
       restart_policy:
         condition: on-failure
       resources:
@@ -15,6 +24,9 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
+      placement:
+        preferences:
+          - spread: node.hostname
     secrets:
       - gh_runner_token
     configs:
