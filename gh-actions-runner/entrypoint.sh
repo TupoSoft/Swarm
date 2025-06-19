@@ -43,7 +43,7 @@ fi
 
 cleanup() {
   echo "Deregistering runner..."
-  ./config.sh remove --token "${RUNNER_TOKEN}"
+  ./config.sh remove --token "${REG_TOKEN}"
 }
 trap 'cleanup; exit 130' INT
 trap 'cleanup; exit 143' TERM
