@@ -2,7 +2,7 @@
 set -e
 
 if [[ -f "$GH_PAT_SECRET_FILE_PATH" ]]; then
-  GH_PAT="$(cat "$GHA_PAT_SECRET_FILE_PATH")"
+  GH_PAT="$(cat "$GH_PAT_SECRET_FILE_PATH")"
 else
   echo "ERROR: Secret file not found at $GH_PAT_SECRET_FILE_PATH" >&2
   exit 1
