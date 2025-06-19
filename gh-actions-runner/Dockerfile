@@ -37,9 +37,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 # Configure non-root user and permissions
-RUN groupadd -f docker && \
-    useradd -m runner && \
-    usermod -aG docker runner && \
+RUN useradd -m runner && \
     mkdir -p /actions-runner/_work && \
     chown -R runner:runner /actions-runner
 
