@@ -14,8 +14,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       node.vm.network "private_network", ip: "192.168.56.#{ip_last}"
 
       node.vm.provision "shell", name: "install dependencies", inline: <<-SHELL
-        sudo apt update
-        sudo apt install -y jq
+        apt-get update
+        apt-get install -y jq
       SHELL
 
       node.vm.provision "shell", inline: <<-SHELL
