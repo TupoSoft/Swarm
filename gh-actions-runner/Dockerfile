@@ -36,7 +36,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     docker-compose-plugin && \
     rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /actions-runner/_work
+RUN useradd -m runner && \
+    usermod -aG docker runner && \
+    mkdir -p /actions-runner/_work && \
+    chown -R runner:runner /actions-runner
+
 WORKDIR /actions-runner
 
 ARG RUNNER_VERSION

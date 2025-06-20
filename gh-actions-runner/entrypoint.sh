@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -ex
 
 if [[ -f "$GH_PAT_SECRET_FILE_PATH" ]]; then
   GH_PAT="$(cat "$GH_PAT_SECRET_FILE_PATH")"
@@ -32,7 +32,7 @@ if [[ -z "$REG_TOKEN" || "$REG_TOKEN" == "null" ]]; then
   exit 1
 fi
 
-./config.sh \
+runuser -u runner -- ./config.sh \
   --unattended \
   --url      "${RUNNER_URL}" \
   --token    "${REG_TOKEN}" \
@@ -43,12 +43,12 @@ fi
 
 cleanup() {
   echo "Deregistering runner..."
-  ./config.sh remove --token "${REG_TOKEN}"
+  runuser -u runner -- ./config.sh remove --token "${REG_TOKEN}"
 }
 
 trap cleanup SIGINT SIGTERM
 
-./run.sh &
+runuser -u runner -- ./run.sh &
 RUNNER_PID=$!
 
 wait "${RUNNER_PID}"
