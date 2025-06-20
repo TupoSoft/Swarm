@@ -1,13 +1,22 @@
 VAGRANTFILE_API_VERSION = "2"
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.vm.box = "ubuntu/focal64"
+  config.vm.box = "ubuntu/jammy64"
+  config.vm.provider "virtualbox" do |v|
+      v.memory = 2048
+      v.cpus = 2
+  end
 
   %w[manager-1 manager-2 manager-3].each_with_index do |name, idx|
     config.vm.define name do |node|
       node.vm.hostname = name
       ip_last = idx + 11
       node.vm.network "private_network", ip: "192.168.56.#{ip_last}"
+
+      node.vm.provision "shell", name: "install dependencies", inline: <<-SHELL
+        sudo apt update
+        sudo apt install -y jq
+      SHELL
 
       node.vm.provision "shell", inline: <<-SHELL
         curl -fsSL https://get.docker.com -o get-docker.sh

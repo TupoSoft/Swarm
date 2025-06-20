@@ -40,7 +40,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - runner_work:/actions-runner/_work
-    entrypoint: [ "/entrypoint.sh" ]
 
 secrets:
   gh_pat:
