@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-set -ex
+set -e
+
+groupmod -g $(stat -c "%g" /var/run/docker.sock) docker
 
 if [[ -f "$GH_PAT_SECRET_FILE_PATH" ]]; then
   GH_PAT="$(cat "$GH_PAT_SECRET_FILE_PATH")"
