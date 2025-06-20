@@ -1,0 +1,17 @@
+name: Deploy GitHub Actions Runner
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 18 * * *'
+
+jobs:
+  deploy-stack:
+    name: Deploy GitHub Actions Runner Stack
+    uses: TupoSoft/GitHubActions/.github/workflows/swarm-deploy.yml@master
+    with:
+      stack_name: gh-actions-runner
+      stack_file: gh-actions-runner/gh-actions-runner.yml
+      runners: 'ubuntu-latest'
+    secrets: inherit
+    concurrency:
+      group: deploy-stack-gh-actions-runner
