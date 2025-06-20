@@ -49,7 +49,7 @@ secrets:
 configs:
   runner_entrypoint:
     name: github_actions_runner_entrypoint_${GITHUB_RUN_ID}.sh
-    file: ../gh-actions-runner/entrypoint.sh
+    file: entrypoint.sh
 
 volumes:
   runner_work:
