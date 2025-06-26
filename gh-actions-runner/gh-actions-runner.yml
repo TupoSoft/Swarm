@@ -6,11 +6,11 @@ services:
   actions-runner:
     image: ghcr.io/tuposoft/gh-actions-runner:latest
     deploy:
-      replicas: 3
+      replicas: 6
       update_config:
         parallelism: 1
         delay: 5s
-        order: stop-first
+        order: start-first
         failure_action: rollback
         monitor: 15s
       rollback_config:
@@ -20,7 +20,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 2G
+          memory: 1G
         reservations:
           cpus: "0.5"
           memory: 512M
