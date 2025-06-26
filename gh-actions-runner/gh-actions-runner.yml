@@ -39,7 +39,6 @@ services:
       GH_PAT_SECRET_FILE_PATH: "/run/secrets/gh_pat"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - runner_work:/actions-runner/_work
 
 secrets:
   gh_pat:
@@ -50,6 +49,3 @@ configs:
   runner_entrypoint:
     name: github_actions_runner_entrypoint_${GITHUB_RUN_ID}.sh
     file: entrypoint.sh
-
-volumes:
-  runner_work:
