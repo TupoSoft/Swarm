@@ -1,0 +1,68 @@
+version: '3.9'
+
+services:
+  etcd_1:
+    image: quay.io/coreos/etcd:v3.6.5
+    entrypoint: /usr/local/bin/etcd
+    command:
+      - --name=etcd_1
+      - --data-dir=/etcd-data
+      - --initial-advertise-peer-urls=http://etcd_1:2380
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd_1:2379
+      - --initial-cluster=etcd_1=http://etcd_1:2380,etcd_2=http://etcd_2:2380,etcd_3=http://etcd_3:2380
+      - --initial-cluster-state=new
+    volumes:
+      - etcd_1_data:/etcd-data
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname==manager-1
+
+  etcd_2:
+    image: quay.io/coreos/etcd:v3.6.5
+    entrypoint: /usr/local/bin/etcd
+    command:
+      - --name=etcd_2
+      - --data-dir=/etcd-data
+      - --initial-advertise-peer-urls=http://etcd_2:2380
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd_2:2379
+      - --initial-cluster=etcd_1=http://etcd_1:2380,etcd_2=http://etcd_2:2380,etcd_3=http://etcd_3:2380
+      - --initial-cluster-state=new
+    volumes:
+      - etcd_2_data:/etcd-data
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname==manager-2
+
+  etcd_3:
+    image: quay.io/coreos/etcd:v3.6.5
+    entrypoint: /usr/local/bin/etcd
+    command:
+      - --name=etcd_3
+      - --data-dir=/etcd-data
+      - --initial-advertise-peer-urls=http://etcd_3:2380
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd_3:2379
+      - --initial-cluster=etcd_1=http://etcd_1:2380,etcd_2=http://etcd_2:2380,etcd_3=http://etcd_3:2380
+      - --initial-cluster-state=new
+    volumes:
+      - etcd_3_data:/etcd-data
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname==manager-3
+
+
+volumes:
+  etcd_1_data:
+  etcd_2_data:
+  etcd_3_data:
