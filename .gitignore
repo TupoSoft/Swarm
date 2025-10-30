@@ -4,3 +4,4 @@
 out
 gen
 .vagrant
+Vagrantfile.local

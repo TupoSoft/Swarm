@@ -41,3 +41,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     end
   end
 end
+
+local_vagrantfile = File.join(File.dirname(__FILE__), 'Vagrantfile.local')
+load local_vagrantfile if File.exist?(local_vagrantfile)
