@@ -18,7 +18,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         apt-get install -y jq
       SHELL
 
-      node.vm.provision "shell", inline: <<-SHELL
+      node.vm.provision "shell", name: "install docker", inline: <<-SHELL
         curl -fsSL https://get.docker.com -o get-docker.sh
         sh ./get-docker.sh
         groupadd -f docker
