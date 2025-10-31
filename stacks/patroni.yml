@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
   patroni_1: &patroni
-    image: ghcr.io/zalando/spilo-17:4.0-p3
+    image: ghcr.io/zalando/spilo-17@sha256:b7db9e8f62e809ebd9a0679fbdba147a811fdd240ab78380ea4720a46a017184
     environment:
       SCOPE: pg-cluster
       ETCD3_HOSTS: '"etcd_1:2379","etcd_2:2379","etcd_3:2379"'
