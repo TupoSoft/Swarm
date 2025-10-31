@@ -1,0 +1,45 @@
+version: '3.9'
+
+services:
+  patroni_1: &patroni
+    image: ghcr.io/zalando/spilo-17:4.0-p3
+    environment:
+      SCOPE: pg-cluster
+      ETCD3_HOSTS: '"etcd_1:2379","etcd_2:2379","etcd_3:2379"'
+    volumes:
+      - patroni_1:/home/postgres/pgdata
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == manager-1
+    networks:
+      - default
+      - etcd_default
+
+  patroni_2:
+    <<: *patroni
+    volumes:
+      - patroni_2:/home/postgres/pgdata
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == manager-2
+
+  patroni_3:
+    <<: *patroni
+    volumes:
+      - patroni_3:/home/postgres/pgdata
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == manager-3
+
+networks:
+  default:
+  etcd_default:
+    external: true
+
+volumes:
+  patroni_1:
+  patroni_2:
+  patroni_3:
