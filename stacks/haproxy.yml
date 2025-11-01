@@ -6,13 +6,16 @@ services:
     configs:
       - source: haproxy.cfg
         target: /usr/local/etc/haproxy/haproxy.cfg
+    ports:
+      - "5432:5432"
+      - "5433:5433"
     networks:
       - default
       - patroni_default
 
 configs:
   haproxy.cfg:
-    name: haproxy.cfg-${GITHUB_RUN_ID:-2}
+    name: haproxy.cfg-${GITHUB_RUN_ID}
     file: ../configs/haproxy/haproxy.cfg
 
 networks:

@@ -6,12 +6,17 @@ services:
     environment:
       SCOPE: pg-cluster
       ETCD3_HOSTS: '"etcd_1:2379","etcd_2:2379","etcd_3:2379"'
+      PGUSER_SUPERUSER: Danilo
+      PGPASSWORD_SUPERUSER: DaniloKaraDrvo123!
+      PGPASSWORD_SUPERUSER_FILE: /run/secrets/pgpassword_superuser
     volumes:
       - patroni_1:/home/postgres/pgdata
     deploy:
       placement:
         constraints:
           - node.hostname == manager-1
+    secrets:
+      - pgpassword_superuser
     networks:
       - default
       - etcd_default
@@ -43,3 +48,7 @@ volumes:
   patroni_1:
   patroni_2:
   patroni_3:
+
+secrets:
+  pgpassword_superuser:
+    external: true
