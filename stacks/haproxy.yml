@@ -1,0 +1,21 @@
+version: '3.9'
+
+services:
+  haproxy:
+    image: haproxy:lts-alpine
+    configs:
+      - source: haproxy.cfg
+        target: /usr/local/etc/haproxy/haproxy.cfg
+    networks:
+      - default
+      - patroni_default
+
+configs:
+  haproxy.cfg:
+    name: haproxy.cfg-${GITHUB_RUN_ID:-2}
+    file: ../configs/haproxy/haproxy.cfg
+
+networks:
+  default:
+  patroni_default:
+    external: true
