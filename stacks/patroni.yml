@@ -80,7 +80,7 @@ volumes:
 
 configs:
   patroni_entrypoint:
-    name: patroni-entrypoint-${GITHUB_RUN_ID}
+    name: patroni-entrypoint
     file: ../configs/patroni-entrypoint.sh
 
 secrets:
