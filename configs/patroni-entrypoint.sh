@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PGPASSWORD_SUPERUSER="$(cat "$PGPASSWORD_SUPERUSER_FILE")"
-export PGPASSWORD_SUPERUSER
+load_and_export_credential() {
+  local var_name="$1"
+  local file_var="${var_name}_FILE"
+  local file_path="${!file_var}"
 
-PGUSER_ADMIN="$(cat "$PGUSER_ADMIN_FILE")"
-export PGUSER_ADMIN
+  local value
+  value="$(cat "$file_path")"
+  export "$var_name=$value"
+}
 
-PGPASSWORD_ADMIN="$(cat "$PGPASSWORD_ADMIN_FILE")"
-export PGPASSWORD_ADMIN
-
-PGUSER_STANDBY="$(cat "$PGUSER_STANDBY_FILE")"
-export PGUSER_STANDBY
-
-PGPASSWORD_STANDBY="$(cat "$PGPASSWORD_STANDBY_FILE")"
-export PGPASSWORD_STANDBY
+load_and_export_credential "PGPASSWORD_SUPERUSER"
+load_and_export_credential "PGUSER_ADMIN"
+load_and_export_credential "PGPASSWORD_ADMIN"
+load_and_export_credential "PGUSER_STANDBY"
+load_and_export_credential "PGPASSWORD_STANDBY"
 
 exec /launch.sh
