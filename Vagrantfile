@@ -22,6 +22,16 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       ip_last = MANAGER_IP_START + i - 1
       node.vm.network "private_network", ip: "#{MANAGER_IP_BASE}.#{ip_last}"
 
+      node.vm.provision "prune-volumes", type: "shell", run: "never", name: "Prune unused Docker volumes", inline: <<-SHELL
+        set -euo pipefail
+        if command -v docker >/dev/null 2>&1; then
+          echo "Pruning unused Docker volumes..."
+          sudo docker volume prune -af || true
+        else
+          echo "Docker not installed; skipping."
+        fi
+      SHELL
+
       node.vm.provision "shell", name: "install dependencies", inline: <<-SHELL
         apt-get update
         apt-get install -y jq

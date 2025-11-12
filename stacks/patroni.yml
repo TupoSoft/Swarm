@@ -3,28 +3,33 @@ version: '3.9'
 services:
   patroni_1: &patroni
     image: ghcr.io/zalando/spilo-17@sha256:b7db9e8f62e809ebd9a0679fbdba147a811fdd240ab78380ea4720a46a017184
+    entrypoint: ["/usr/local/bin/patroni-entrypoint.sh"]
     environment:
       SCOPE: pg-cluster
       ETCD3_HOSTS: '"etcd_1:2379","etcd_2:2379","etcd_3:2379"'
-      PGUSER_SUPERUSER: Danilo
-      PGPASSWORD_SUPERUSER: DaniloKaraDrvo123!
-      PGPASSWORD_SUPERUSER_FILE: /run/secrets/pgpassword_superuser
+      PGPASSWORD_SUPERUSER_FILE: /run/secrets/patroni_superuser_password
     volumes:
       - patroni_1:/home/postgres/pgdata
     deploy:
       placement:
         constraints:
           - node.hostname == manager-1
-    secrets:
-      - pgpassword_superuser
     networks:
       - default
       - etcd_default
+    secrets:
+      - patroni_superuser_password
+    configs:
+      - source: patroni_entrypoint
+        target: /usr/local/bin/patroni-entrypoint.sh
+        mode: 0555
 
   patroni_2:
     <<: *patroni
     volumes:
       - patroni_2:/home/postgres/pgdata
+    ports:
+      - "5432:5432"
     deploy:
       placement:
         constraints:
@@ -49,6 +54,12 @@ volumes:
   patroni_2:
   patroni_3:
 
+configs:
+  patroni_entrypoint:
+    name: patroni-entrypoint-${GITHUB_RUN_ID}
+    file: ../configs/patroni-entrypoint.sh
+
 secrets:
-  pgpassword_superuser:
+  patroni_superuser_password:
+    name: patroni_superuser_password
     external: true
