@@ -24,6 +24,21 @@ services:
       - patroni_1:/home/postgres/pgdata
     deploy:
       replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 10
+        window: 2m
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: stop-first
+        monitor: 1m
+        failure_action: rollback
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+        order: stop-first
       placement:
         constraints:
           - node.labels.role == db
