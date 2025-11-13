@@ -6,6 +6,7 @@ services:
     configs:
       - source: haproxy.cfg
         target: /usr/local/etc/haproxy/haproxy.cfg
+    # open for local testing
     ports:
       - "5432:5432"
       - "5433:5433"

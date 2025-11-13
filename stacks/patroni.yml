@@ -50,9 +50,6 @@ services:
     image: ghcr.io/zalando/spilo-17@sha256:b7db9e8f62e809ebd9a0679fbdba147a811fdd240ab78380ea4720a46a017184
     volumes:
       - patroni_2:/home/postgres/pgdata
-    # open for local testing
-    ports:
-      - "5432:5432"
     deploy:
       placement:
         constraints:
