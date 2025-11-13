@@ -9,6 +9,7 @@ services:
       interval: 10s
       timeout: 3s
       retries: 6
+      start_period: 40s
     stop_grace_period: 3m
     environment:
       SCOPE: pg-cluster
@@ -49,6 +50,7 @@ services:
     image: ghcr.io/zalando/spilo-17@sha256:b7db9e8f62e809ebd9a0679fbdba147a811fdd240ab78380ea4720a46a017184
     volumes:
       - patroni_2:/home/postgres/pgdata
+    # open for local testing
     ports:
       - "5432:5432"
     deploy:
