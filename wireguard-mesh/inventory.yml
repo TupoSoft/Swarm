@@ -1,0 +1,25 @@
+all:
+  hosts:
+    manager-1:
+      ansible_host: 127.0.0.1
+      ansible_port: 2222
+      ansible_user: vagrant
+      ansible_ssh_private_key_file: "/mnt/c/Users/kyryl/RubymineProjects/Swarm/.vagrant/machines/manager-1/virtualbox/private_key"
+      wg_ip: 10.0.0.1
+    manager-2:
+      ansible_host: 127.0.0.1
+      ansible_port: 2200
+      ansible_ssh_private_key_file: "/mnt/c/Users/kyryl/RubymineProjects/Swarm/.vagrant/machines/manager-2/virtualbox/private_key"
+      wg_ip: 10.0.0.2
+    manager-3:
+      ansible_host: 127.0.0.1
+      ansible_port: 2201
+      ansible_ssh_private_key_file: "/mnt/c/Users/kyryl/RubymineProjects/Swarm/.vagrant/machines/manager-3/virtualbox/private_key"
+      wg_ip: 10.0.0.3
+
+  vars:
+    ansible_user: vagrant
+    wg_interface: wg0
+    wg_network: 10.0.0.0/24
+    wg_path: /etc/wireguard
+    wg_port: 51820

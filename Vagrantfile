@@ -7,6 +7,12 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       v.cpus = 2
   end
 
+  config.vm.provision "wg-mesh",
+                      run: "never",
+                      type: "ansible",
+                      playbook: "wireguard-mesh/playbook.yml",
+                      inventory_path: "wireguard-mesh/inventory.yml"
+
   %w[manager-1 manager-2 manager-3].each_with_index do |name, idx|
     config.vm.define name do |node|
       node.vm.hostname = name
