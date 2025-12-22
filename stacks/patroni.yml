@@ -99,17 +99,17 @@ configs:
 
 secrets:
   patroni_superuser_password:
-    name: patroni_superuser_password
+    name: patroni_superuser_password_v2
     external: true
   patroni_admin_user:
     name: patroni_admin_user
     external: true
   patroni_admin_password:
-    name: patroni_admin_password
+    name: patroni_admin_password_v2
     external: true
   patroni_standby_user:
     name: patroni_standby_user
     external: true
   patroni_standby_password:
-    name: patroni_standby_password
+    name: patroni_standby_password_v2
     external: true
