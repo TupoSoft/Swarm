@@ -1,0 +1,115 @@
+version: '3.9'
+
+services:
+  patroni_1: &patroni
+    image: ghcr.io/zalando/spilo-17@sha256:b7db9e8f62e809ebd9a0679fbdba147a811fdd240ab78380ea4720a46a017184
+    entrypoint: ["/usr/local/bin/patroni-entrypoint.sh"]
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://localhost:8008/health" ]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 40s
+    stop_grace_period: 3m
+    environment:
+      SCOPE: pg-cluster
+      ETCD3_HOSTS: '"etcd_1:2379","etcd_2:2379","etcd_3:2379"'
+      USE_ADMIN: "true"
+      PGPASSWORD_SUPERUSER_FILE: /run/secrets/patroni_superuser_password
+      PGUSER_ADMIN_FILE: /run/secrets/patroni_admin_user
+      PGPASSWORD_ADMIN_FILE: /run/secrets/patroni_admin_password
+      PGUSER_STANDBY_FILE: /run/secrets/patroni_standby_user
+      PGPASSWORD_STANDBY_FILE: /run/secrets/patroni_standby_password
+    volumes:
+      - patroni_1:/home/postgres/pgdata
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 10
+        window: 2m
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: stop-first
+        monitor: 1m
+        failure_action: rollback
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+        order: stop-first
+      placement:
+        constraints:
+          - node.labels.role == db
+          - node.labels.zone == eu
+        # noinspection ComposeUnknownValues
+        preferences:
+          - spread: node.labels.zone
+    networks:
+      - default
+      - etcd_default
+    secrets:
+      - patroni_superuser_password
+      - patroni_admin_user
+      - patroni_admin_password
+      - patroni_standby_user
+      - patroni_standby_password
+    configs:
+      - source: patroni_entrypoint
+        target: /usr/local/bin/patroni-entrypoint.sh
+        mode: 0555
+
+  patroni_2:
+    <<: *patroni
+    image: ghcr.io/zalando/spilo-17@sha256:b7db9e8f62e809ebd9a0679fbdba147a811fdd240ab78380ea4720a46a017184
+    volumes:
+      - patroni_2:/home/postgres/pgdata
+    deploy:
+      placement:
+        constraints:
+          - node.labels.role == db
+          - node.labels.zone == uk
+
+  patroni_3:
+    <<: *patroni
+    image: ghcr.io/zalando/spilo-17@sha256:b7db9e8f62e809ebd9a0679fbdba147a811fdd240ab78380ea4720a46a017184
+    volumes:
+      - patroni_3:/home/postgres/pgdata
+    deploy:
+      placement:
+        constraints:
+          - node.labels.role == db
+          - node.labels.zone == us
+
+networks:
+  default:
+  etcd_default:
+    external: true
+
+volumes:
+  patroni_1:
+  patroni_2:
+  patroni_3:
+
+configs:
+  patroni_entrypoint:
+    name: patroni-entrypoint
+    file: ../configs/patroni-entrypoint.sh
+
+secrets:
+  patroni_superuser_password:
+    name: patroni_superuser_password
+    external: true
+  patroni_admin_user:
+    name: patroni_admin_user
+    external: true
+  patroni_admin_password:
+    name: patroni_admin_password
+    external: true
+  patroni_standby_user:
+    name: patroni_standby_user
+    external: true
+  patroni_standby_password:
+    name: patroni_standby_password
+    external: true

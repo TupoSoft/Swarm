@@ -1,17 +1,36 @@
 VAGRANTFILE_API_VERSION = "2"
 
+MANAGER_COUNT = 3
+MANAGER_IP_BASE = "192.168.56"
+MANAGER_IP_START = 11
+VM_MEMORY = 2048
+VM_CPUS = 2
+
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "ubuntu/jammy64"
+
   config.vm.provider "virtualbox" do |v|
-      v.memory = 2048
-      v.cpus = 2
+      v.memory = VM_MEMORY
+      v.cpus = VM_CPUS
   end
 
-  %w[manager-1 manager-2 manager-3].each_with_index do |name, idx|
+  (1..MANAGER_COUNT).each do |i|
+    name = "manager-#{i}"
+
     config.vm.define name do |node|
       node.vm.hostname = name
-      ip_last = idx + 11
-      node.vm.network "private_network", ip: "192.168.56.#{ip_last}"
+      ip_last = MANAGER_IP_START + i - 1
+      node.vm.network "private_network", ip: "#{MANAGER_IP_BASE}.#{ip_last}"
+
+      node.vm.provision "prune-volumes", type: "shell", run: "never", name: "Prune unused Docker volumes", inline: <<-SHELL
+        set -euo pipefail
+        if command -v docker >/dev/null 2>&1; then
+          echo "Pruning unused Docker volumes..."
+          sudo docker volume prune -af || true
+        else
+          echo "Docker not installed; skipping."
+        fi
+      SHELL
 
       node.vm.provision "shell", name: "install dependencies", inline: <<-SHELL
         apt-get update
@@ -19,8 +38,11 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       SHELL
 
       node.vm.provision "shell", name: "install docker", inline: <<-SHELL
-        curl -fsSL https://get.docker.com -o get-docker.sh
-        sh ./get-docker.sh
+        if ! command -v docker &> /dev/null; then
+          curl -fsSL https://get.docker.com -o get-docker.sh
+          sh ./get-docker.sh
+          rm get-docker.sh
+        fi
         groupadd -f docker
         usermod -aG docker vagrant
         newgrp docker
@@ -28,14 +50,18 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
       if name == 'manager-1'
         node.vm.provision "shell", name: "init a cluster", inline: <<-SHELL
-          docker swarm init --advertise-addr 192.168.56.11
+          if ! docker info | grep -q "Swarm: active"; then
+            docker swarm init --advertise-addr 192.168.56.11
+          fi
           docker swarm join-token manager -q > /vagrant/.vagrant/manager-token
         SHELL
       else
         node.vm.provision "shell", name: "join the cluster", inline: <<-SHELL
-          while [ ! -f /vagrant/.vagrant/manager-token ]; do sleep 2; done
-          TOKEN=$(cat /vagrant/.vagrant/manager-token)
-          docker swarm join --token $TOKEN 192.168.56.11:2377
+          if ! docker info | grep -q "Swarm: active"; then
+            while [ ! -f /vagrant/.vagrant/manager-token ]; do sleep 2; done
+            TOKEN=$(cat /vagrant/.vagrant/manager-token)
+            docker swarm join --token $TOKEN 192.168.56.11:2377
+          fi
         SHELL
       end
     end

@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
   etcd_1:
-    image: quay.io/coreos/etcd:v3.6.5
+    image: quay.io/coreos/etcd@sha256:7765cc8a528e441b8032365eb36a96074e710bad2a6bf668699d0548c410baed
     entrypoint: /usr/local/bin/etcd
     command:
       - --name=etcd_1
@@ -22,7 +22,7 @@ services:
           - node.hostname==manager-1
 
   etcd_2:
-    image: quay.io/coreos/etcd:v3.6.5
+    image: quay.io/coreos/etcd@sha256:7765cc8a528e441b8032365eb36a96074e710bad2a6bf668699d0548c410baed
     entrypoint: /usr/local/bin/etcd
     command:
       - --name=etcd_2
@@ -42,7 +42,7 @@ services:
           - node.hostname==manager-2
 
   etcd_3:
-    image: quay.io/coreos/etcd:v3.6.5
+    image: quay.io/coreos/etcd@sha256:7765cc8a528e441b8032365eb36a96074e710bad2a6bf668699d0548c410baed
     entrypoint: /usr/local/bin/etcd
     command:
       - --name=etcd_3
