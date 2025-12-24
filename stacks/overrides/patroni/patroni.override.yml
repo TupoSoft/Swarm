@@ -1,0 +1,16 @@
+version: '3.9'
+
+services:
+  patroni_1:
+    stop_grace_period: 3m
+secrets:
+  patroni_superuser_password:
+    file: overrides/patroni/secrets/patroni_superuser_password
+  patroni_admin_user:
+    file: overrides/patroni/secrets/patroni_admin_user
+  patroni_admin_password:
+    file: overrides/patroni/secrets/patroni_admin_password
+  patroni_standby_user:
+    file: overrides/patroni/secrets/patroni_standby_user
+  patroni_standby_password:
+    file: overrides/patroni/secrets/patroni_standby_password
