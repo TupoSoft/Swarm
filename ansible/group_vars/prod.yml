@@ -1,0 +1,2 @@
+ansible_python_interpreter: /usr/bin/python3.10
+wireguard_preup: echo 1 > /proc/sys/net/ipv4/ip_forward

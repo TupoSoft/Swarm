@@ -1,0 +1,16 @@
+prod:
+  hosts:
+    manager-1:
+    manager-2:
+    manager-3:
+
+local:
+  hosts:
+    local-manager-1:
+    local-manager-2:
+    local-manager-3:
+
+vpn:
+  children:
+    prod:
+    local:

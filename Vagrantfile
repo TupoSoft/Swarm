@@ -14,6 +14,12 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       v.cpus = VM_CPUS
   end
 
+  config.vm.provision "wg-mesh",
+                      run: "never",
+                      type: "ansible",
+                      playbook: "ansible/wireguard.yml",
+                      inventory_path: "ansible/inventory.yml"
+
   (1..MANAGER_COUNT).each do |i|
     name = "manager-#{i}"
 

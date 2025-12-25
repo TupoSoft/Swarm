@@ -1,0 +1,5 @@
+- name: WireGuard full-mesh VPN
+  hosts: vpn
+  become: true
+  roles:
+    - githubixx.ansible_role_wireguard
