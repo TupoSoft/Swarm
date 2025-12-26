@@ -1,3 +1,5 @@
+require 'vagrant'
+
 VAGRANTFILE_API_VERSION = "2"
 
 MANAGER_COUNT = 3
@@ -17,8 +19,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.provision "wg-mesh",
                       run: "never",
                       type: "ansible",
-                      playbook: "ansible/wireguard.yml",
-                      inventory_path: "ansible/inventory.yml"
+                      playbook: "ansible/wireguard.yml"
 
   (1..MANAGER_COUNT).each do |i|
     name = "manager-#{i}"

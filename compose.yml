@@ -1,0 +1,5 @@
+# Docker Compose configuration for the RubyMine remote interpreter.
+services:
+  ruby:
+    build:
+      context: .
