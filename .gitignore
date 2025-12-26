@@ -5,5 +5,5 @@ out
 gen
 .vagrant
 Vagrantfile.local
-ansible/roles
-ansible/collections
+ansible/.roles
+ansible/.collections
