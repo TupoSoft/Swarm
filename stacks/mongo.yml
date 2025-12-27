@@ -50,7 +50,11 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.hostname==manager-1
+          - node.labels.role == db
+          - node.labels.zone == eu
+        # noinspection ComposeUnknownValues
+        preferences:
+          - spread: node.labels.zone
 
   mongo1:
     <<: *mongo
@@ -64,7 +68,11 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.hostname==manager-2
+          - node.labels.role == db
+          - node.labels.zone == uk
+        # noinspection ComposeUnknownValues
+        preferences:
+          - spread: node.labels.zone
 
   mongo2:
     <<: *mongo
@@ -78,7 +86,11 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.hostname==manager-3
+          - node.labels.role == db
+          - node.labels.zone == us
+        # noinspection ComposeUnknownValues
+        preferences:
+          - spread: node.labels.zone
 
   mgob:
     image: maxisam/mgob:2.0.27-minio

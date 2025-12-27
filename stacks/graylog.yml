@@ -39,7 +39,11 @@ services:
         order: start-first
       placement:
         constraints:
-          - node.hostname==manager-1
+          - node.labels.role == db
+          - node.labels.zone == eu
+        # noinspection ComposeUnknownValues
+        preferences:
+          - spread: node.labels.zone
 
   eu:
     hostname: 'graylog.eu.tuposoft.internal'
@@ -76,7 +80,11 @@ services:
         order: start-first
       placement:
         constraints:
-          - node.hostname==manager-1
+          - node.labels.role == db
+          - node.labels.zone == eu
+        # noinspection ComposeUnknownValues
+        preferences:
+          - spread: node.labels.zone
 
 secrets:
   graylog_root_username:
