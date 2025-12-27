@@ -9,9 +9,6 @@
     swarm_advertise_addr: "192.168.57.11"
     swarm_manager_host: "local-manager-1"
 
-  roles:
-    - githubixx.ansible_role_wireguard
-
   tasks:
     - name: Update apt cache
       apt:

@@ -1,0 +1,23 @@
+---
+- name: Prune unused Docker volumes if Docker is installed
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: Check whether Docker is installed
+      command: docker version
+      register: docker_check
+      changed_when: false
+      failed_when: false
+
+    - name: Prune unused Docker volumes
+      command: docker volume prune -af
+      when: docker_check.rc == 0
+      register: prune_result
+      changed_when: true
+      failed_when: false
+
+    - name: Docker not installed; skipping.
+      debug:
+        msg: "Docker not installed; skipping."
+      when: docker_check.rc != 0

@@ -20,57 +20,38 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     v.cpus = VM_CPUS
   end
 
-  nodes = ["localhost"]
-  host_vars = {
-    localhost: {
-      ansible_connection: "local",
-      wireguard_addresses: "'[\"#{WIREGUARD_WORKSTATION_IP}/#{WIREGUARD_IP_SUBNET}\"]'",
-      wireguard_endpoint: ""
-    }
-  }
-
   (1..MANAGER_COUNT).each do |i|
     name = "local-manager-#{i}"
     ip_last = MANAGER_IP_START + i - 1
     ssh_port = SSH_PORT_START + i - 1
     node_ip = "#{MANAGER_IP_BASE}.#{ip_last}"
 
-    nodes << name
-
-    host_vars[name] = {
-      wireguard_addresses: "'[\"#{WIREGUARD_IP_BASE}.#{ip_last}/#{WIREGUARD_IP_SUBNET}\"]'",
-      wireguard_endpoint: node_ip
-    }
-
     config.vm.define name do |node|
       node.vm.hostname = name
       node.vm.network "private_network", ip: node_ip
       node.vm.network "forwarded_port", guest: 22, host: ssh_port, id: "ssh"
 
-      node.vm.provision "prune-volumes", type: "shell", run: "never", name: "Prune unused Docker volumes", inline: <<-SHELL
-        set -euo pipefail
-        if command -v docker >/dev/null 2>&1; then
-          echo "Pruning unused Docker volumes..."
-          sudo docker volume prune -af || true
-        else
-          echo "Docker not installed; skipping."
-        fi
-      SHELL
+      node.vm.provision "prune-volumes",
+        type: "ansible",
+        run: "never",
+        playbook: "ansible/playbooks/prune-unused-docker-volumes.yml",
+        inventory_path: "ansible/inventory/local",
+        limit: "swarm"
 
       if i == MANAGER_COUNT
-        node.vm.provision "wg-mesh",
+        node.vm.provision "wireguard",
           type: "ansible",
-          playbook: "ansible/local-swarm.yml",
+          playbook: "ansible/playbooks/local-wireguard.yml",
           config_file: "ansible/ansible.cfg",
-          limit: "vpn",
-          host_vars: host_vars,
-          groups: {
-            vpn: nodes,
-            "vpn:vars": {
-              ansible_python_interpreter: "/usr/bin/python3.10",
-              wireguard_preup: ["echo 1 > /proc/sys/net/ipv4/ip_forward"]
-            }
-          }
+          inventory_path: "ansible/inventory/local",
+          limit: "swarm"
+
+        node.vm.provision "swarm",
+          type: "ansible",
+          playbook: "ansible/playbooks/local-swarm.yml",
+          config_file: "ansible/ansible.cfg",
+          inventory_path: "ansible/inventory/local",
+          limit: "swarm"
       end
     end
   end
