@@ -4,7 +4,10 @@ VAGRANTFILE_API_VERSION = "2"
 
 MANAGER_COUNT = 3
 MANAGER_IP_BASE = "192.168.56"
+WIREGUARD_IP_BASE = "192.168.57"
+WIREGUARD_IP_SUBNET = 24
 MANAGER_IP_START = 11
+SSH_PORT_START = 2200
 VM_MEMORY = 2048
 VM_CPUS = 2
 
@@ -12,22 +15,30 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "ubuntu/jammy64"
 
   config.vm.provider "virtualbox" do |v|
-      v.memory = VM_MEMORY
-      v.cpus = VM_CPUS
+    v.memory = VM_MEMORY
+    v.cpus = VM_CPUS
   end
 
-  config.vm.provision "wg-mesh",
-                      run: "never",
-                      type: "ansible",
-                      playbook: "ansible/wireguard.yml"
+  nodes = []
+  host_vars = {}
 
   (1..MANAGER_COUNT).each do |i|
-    name = "manager-#{i}"
+    name = "local-manager-#{i}"
+    ip_last = MANAGER_IP_START + i - 1
+    ssh_port = SSH_PORT_START + i - 1
+    node_ip = "#{MANAGER_IP_BASE}.#{ip_last}"
+
+    nodes << name
+
+    host_vars[name] = {
+      wireguard_addresses: "'[\"#{WIREGUARD_IP_BASE}.#{ip_last}/#{WIREGUARD_IP_SUBNET}\"]'",
+      wireguard_endpoint: node_ip,
+    }
 
     config.vm.define name do |node|
       node.vm.hostname = name
-      ip_last = MANAGER_IP_START + i - 1
-      node.vm.network "private_network", ip: "#{MANAGER_IP_BASE}.#{ip_last}"
+      node.vm.network "private_network", ip: node_ip
+      node.vm.network "forwarded_port", guest: 22, host: ssh_port, id: "ssh"
 
       node.vm.provision "prune-volumes", type: "shell", run: "never", name: "Prune unused Docker volumes", inline: <<-SHELL
         set -euo pipefail
@@ -39,37 +50,20 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         fi
       SHELL
 
-      node.vm.provision "shell", name: "install dependencies", inline: <<-SHELL
-        apt-get update
-        apt-get install -y jq
-      SHELL
-
-      node.vm.provision "shell", name: "install docker", inline: <<-SHELL
-        if ! command -v docker &> /dev/null; then
-          curl -fsSL https://get.docker.com -o get-docker.sh
-          sh ./get-docker.sh
-          rm get-docker.sh
-        fi
-        groupadd -f docker
-        usermod -aG docker vagrant
-        newgrp docker
-      SHELL
-
-      if name == 'manager-1'
-        node.vm.provision "shell", name: "init a cluster", inline: <<-SHELL
-          if ! docker info | grep -q "Swarm: active"; then
-            docker swarm init --advertise-addr 192.168.56.11
-          fi
-          docker swarm join-token manager -q > /vagrant/.vagrant/manager-token
-        SHELL
-      else
-        node.vm.provision "shell", name: "join the cluster", inline: <<-SHELL
-          if ! docker info | grep -q "Swarm: active"; then
-            while [ ! -f /vagrant/.vagrant/manager-token ]; do sleep 2; done
-            TOKEN=$(cat /vagrant/.vagrant/manager-token)
-            docker swarm join --token $TOKEN 192.168.56.11:2377
-          fi
-        SHELL
+      if i == MANAGER_COUNT
+        node.vm.provision "wg-mesh",
+                          type: "ansible",
+                          playbook: "ansible/local-swarm.yml",
+                          config_file: "ansible/ansible.cfg",
+                          limit: "vpn",
+                          host_vars: host_vars,
+                          groups: {
+                            vpn: nodes,
+                            "vpn:vars": {
+                              ansible_python_interpreter: "/usr/bin/python3.10",
+                              wireguard_preup: ["echo 1 > /proc/sys/net/ipv4/ip_forward"],
+                            }
+                          }
       end
     end
   end
