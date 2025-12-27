@@ -19,7 +19,11 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.hostname==manager-1
+          - node.labels.role == db
+          - node.labels.zone == eu
+        # noinspection ComposeUnknownValues
+        preferences:
+          - spread: node.labels.zone
 
   etcd_2:
     image: quay.io/coreos/etcd@sha256:7765cc8a528e441b8032365eb36a96074e710bad2a6bf668699d0548c410baed
@@ -39,7 +43,11 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.hostname==manager-2
+          - node.labels.role == db
+          - node.labels.zone == uk
+        # noinspection ComposeUnknownValues
+        preferences:
+          - spread: node.labels.zone
 
   etcd_3:
     image: quay.io/coreos/etcd@sha256:7765cc8a528e441b8032365eb36a96074e710bad2a6bf668699d0548c410baed
@@ -59,7 +67,11 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.hostname==manager-3
+          - node.labels.role == db
+          - node.labels.zone == us
+        # noinspection ComposeUnknownValues
+        preferences:
+          - spread: node.labels.zone
 
 
 volumes:

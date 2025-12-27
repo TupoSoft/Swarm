@@ -24,7 +24,11 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.hostname==manager-1
+          - node.labels.role == db
+          - node.labels.zone == eu
+        # noinspection ComposeUnknownValues
+        preferences:
+          - spread: node.labels.zone
       update_config:
         delay: 5s
         order: start-first
@@ -53,7 +57,11 @@ services:
     deploy:
       placement:
         constraints:
-          - node.hostname==manager-2
+          - node.labels.role == db
+          - node.labels.zone == uk
+        # noinspection ComposeUnknownValues
+        preferences:
+          - spread: node.labels.zone
 
   replica_2:
     <<: *replica
@@ -75,7 +83,11 @@ services:
     deploy:
       placement:
         constraints:
-          - node.hostname==manager-3
+          - node.labels.role == db
+          - node.labels.zone == us
+        # noinspection ComposeUnknownValues
+        preferences:
+          - spread: node.labels.zone
 
   sentinel_1: &sentinel
     image: redis@sha256:1bf97f21f01b0e7bd4b7b34a26d3b9d8086e41e70c10f262e8a9e0b49b5116a0
