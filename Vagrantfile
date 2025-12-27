@@ -1,4 +1,4 @@
-require 'vagrant'
+require "vagrant"
 
 VAGRANTFILE_API_VERSION = "2"
 
@@ -6,6 +6,7 @@ MANAGER_COUNT = 3
 MANAGER_IP_BASE = "192.168.56"
 WIREGUARD_IP_BASE = "192.168.57"
 WIREGUARD_IP_SUBNET = 24
+WIREGUARD_WORKSTATION_IP = "#{WIREGUARD_IP_BASE}.254"
 MANAGER_IP_START = 11
 SSH_PORT_START = 2200
 VM_MEMORY = 2048
@@ -19,8 +20,14 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     v.cpus = VM_CPUS
   end
 
-  nodes = []
-  host_vars = {}
+  nodes = ["localhost"]
+  host_vars = {
+    localhost: {
+      ansible_connection: "local",
+      wireguard_addresses: "'[\"#{WIREGUARD_WORKSTATION_IP}/#{WIREGUARD_IP_SUBNET}\"]'",
+      wireguard_endpoint: ""
+    }
+  }
 
   (1..MANAGER_COUNT).each do |i|
     name = "local-manager-#{i}"
@@ -32,7 +39,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
     host_vars[name] = {
       wireguard_addresses: "'[\"#{WIREGUARD_IP_BASE}.#{ip_last}/#{WIREGUARD_IP_SUBNET}\"]'",
-      wireguard_endpoint: node_ip,
+      wireguard_endpoint: node_ip
     }
 
     config.vm.define name do |node|
@@ -52,22 +59,22 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
       if i == MANAGER_COUNT
         node.vm.provision "wg-mesh",
-                          type: "ansible",
-                          playbook: "ansible/local-swarm.yml",
-                          config_file: "ansible/ansible.cfg",
-                          limit: "vpn",
-                          host_vars: host_vars,
-                          groups: {
-                            vpn: nodes,
-                            "vpn:vars": {
-                              ansible_python_interpreter: "/usr/bin/python3.10",
-                              wireguard_preup: ["echo 1 > /proc/sys/net/ipv4/ip_forward"],
-                            }
-                          }
+          type: "ansible",
+          playbook: "ansible/local-swarm.yml",
+          config_file: "ansible/ansible.cfg",
+          limit: "vpn",
+          host_vars: host_vars,
+          groups: {
+            vpn: nodes,
+            "vpn:vars": {
+              ansible_python_interpreter: "/usr/bin/python3.10",
+              wireguard_preup: ["echo 1 > /proc/sys/net/ipv4/ip_forward"]
+            }
+          }
       end
     end
   end
 end
 
-local_vagrantfile = File.join(File.dirname(__FILE__), 'Vagrantfile.local')
+local_vagrantfile = File.join(File.dirname(__FILE__), "Vagrantfile.local")
 load local_vagrantfile if File.exist?(local_vagrantfile)

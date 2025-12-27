@@ -7,3 +7,4 @@ gen
 Vagrantfile.local
 ansible/.roles
 ansible/.collections
+vendor
