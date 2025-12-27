@@ -103,3 +103,9 @@
         - swarm_state.stdout != "active"
       register: swarm_join
       changed_when: swarm_join.rc == 0
+
+    - name: Add node labels
+      command: >
+        docker node update
+        {% for label in docker.node.labels %} --label-add "{{ label }}" {% endfor %}
+        {{ inventory_hostname }}
