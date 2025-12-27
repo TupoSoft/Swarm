@@ -1,0 +1,18 @@
+#!/usr/sbin/nft -f
+
+define allowed_interfaces = { {{ allowed_interfaces | map('to_json') | join(', ') }} }
+
+table inet filter {
+    set allowed_interfaces {
+        type ifname
+        elements = $allowed_interfaces
+    }
+
+    chain DOCKER-USER {
+        udp sport 53 counter return
+        ct state related,established counter return
+        iifname @allowed_interfaces counter return
+        tcp dport 443 counter return
+        log prefix "dropped in inet filter DOCKER-USER: " counter drop
+    }
+}

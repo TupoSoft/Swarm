@@ -8,3 +8,4 @@ Vagrantfile.local
 ansible/.roles
 ansible/.collections
 vendor
+.venv
