@@ -43,7 +43,9 @@
           #!/usr/sbin/nft -f
           flush ruleset
           include "/etc/nftables.d/*.nft"
-      notify: Reload nftables service
+      notify:
+        - Reload nftables service
+        - Restart Docker to apply its iptables rules
 
     - name: Enable and start nftables service enabled
       ansible.builtin.service:
@@ -59,3 +61,8 @@
       ansible.builtin.service:
         name: nftables
         state: reloaded
+
+    - name: Restart Docker to apply its iptables rules
+      ansible.builtin.service:
+        name: docker
+        state: restarted

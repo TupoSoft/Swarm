@@ -2,7 +2,7 @@
 
 define allowed_interfaces = { {{ allowed_interfaces | map('to_json') | join(', ') }} }
 
-table inet filter {
+{% macro docker_user_rules(family) %}
     set allowed_interfaces {
         type ifname
         elements = $allowed_interfaces
@@ -13,6 +13,14 @@ table inet filter {
         ct state related,established counter return
         iifname @allowed_interfaces counter return
         tcp dport 443 counter return
-        log prefix "dropped in inet filter DOCKER-USER: " counter drop
+        log prefix "dropped in {{ family }} filter DOCKER-USER: " counter drop
     }
+{% endmacro %}
+
+table ip filter {
+    {{ docker_user_rules('ip') }}
+}
+
+table ip6 filter {
+    {{ docker_user_rules('ip6') }}
 }
