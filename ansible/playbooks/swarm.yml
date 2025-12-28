@@ -1,11 +1,10 @@
 ---
 - name: Install deps, Docker, and create/join a Swarm
-  hosts: vpn
+  hosts: swarm
   become: true
   gather_facts: true
 
   vars:
-    docker_user: vagrant
     swarm_advertise_addr: "192.168.57.11"
     swarm_manager_host: "local-manager-1"
 
@@ -64,7 +63,7 @@
 
     - name: Add user to docker group
       user:
-        name: "{{ docker_user }}"
+        name: "{{ ansible_user }}"
         groups: docker
         append: true
 

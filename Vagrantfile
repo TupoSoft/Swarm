@@ -41,8 +41,8 @@ def configure_node(config, index)
 
     if index == MANAGER_COUNT
       provision_ansible vm, "ansible/playbooks/prune-unused-docker-volumes.yml", run: "never"
-      provision_ansible vm, "ansible/playbooks/local-wireguard.yml"
-      provision_ansible vm, "ansible/playbooks/local-swarm.yml"
+      provision_ansible vm, "ansible/playbooks/wireguard.yml"
+      provision_ansible vm, "ansible/playbooks/swarm.yml"
       provision_ansible vm, "ansible/playbooks/apply-nftables-rules.yml"
     end
   end

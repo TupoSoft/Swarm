@@ -2,3 +2,8 @@ docker:
   node:
     labels:
       - "role=db"
+
+nftables:
+  apply:
+    pause:
+      minutes: 1

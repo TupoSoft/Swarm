@@ -1,6 +1,7 @@
 - name: Apply nftables rules
   hosts: swarm
   become: true
+  serial: 1
 
   vars:
     wireguard_ifname: wg0
@@ -43,15 +44,21 @@
           #!/usr/sbin/nft -f
           flush ruleset
           include "/etc/nftables.d/*.nft"
-      notify:
-        - Reload nftables service
-        - Restart Docker to apply its iptables rules
 
     - name: Enable and start nftables service enabled
       ansible.builtin.service:
         name: nftables
         enabled: true
         state: started
+      notify:
+        - Reload nftables service
+        - Restart Docker to apply its iptables rules
+
+    - name: Flush handlers
+      meta: flush_handlers
+
+    - name: Wait between executions
+      ansible.builtin.pause: "{{ nftables.apply.pause }}"
 
   handlers:
     - name: Load nft file
