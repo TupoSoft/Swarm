@@ -4,5 +4,15 @@
   become: true
   gather_facts: true
 
+  pre_tasks:
+    - name: Install resolvconf
+      ansible.builtin.apt:
+        name: resolvconf
+        state: present
+        update_cache: yes
+      when:
+        - ansible_distribution == 'Ubuntu'
+        - ansible_distribution_major_version | int <= 22
+
   roles:
     - githubixx.ansible_role_wireguard
