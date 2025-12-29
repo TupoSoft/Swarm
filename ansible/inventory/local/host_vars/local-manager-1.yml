@@ -1,7 +1,6 @@
 wireguard_addresses:
   - "192.168.57.11/24"
 wireguard_endpoint: "192.168.56.11"
-wireguard_dns: "{{ wireguard_endpoint }}:1053"
 
 docker:
   node:
