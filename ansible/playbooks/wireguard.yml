@@ -3,6 +3,7 @@
   hosts: vpn
   become: true
   gather_facts: true
+  any_errors_fatal: true
 
   pre_tasks:
     - name: Install resolvconf
