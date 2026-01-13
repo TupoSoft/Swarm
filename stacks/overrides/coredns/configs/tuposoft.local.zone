@@ -1,0 +1,18 @@
+$ORIGIN tuposoft.local.
+$TTL 30
+
+@   IN SOA ns1.local.internal. admin.tuposoft.local. (
+        2025122801 ; serial
+        3600       ; refresh
+        600        ; retry
+        604800     ; expire
+        30         ; minimum
+)
+
+    IN NS  ns1.tuposoft.local.
+ns1 IN A   192.168.57.11
+
+; Wildcard: every service name resolves to ingress nodes over WireGuard
+*   IN A   192.168.57.11
+*   IN A   192.168.57.12
+*   IN A   192.168.57.13
