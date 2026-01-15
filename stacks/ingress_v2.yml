@@ -11,8 +11,8 @@ services:
       - tuposoft.com.cert.pem
       - tuposoft.com.key.pem
     configs:
-      - source: api.leademailfinder.com.conf
-        target: /etc/nginx/conf.d/api.leademailfinder.com.conf
+#      - source: api.leademailfinder.com.conf
+#        target: /etc/nginx/conf.d/api.leademailfinder.com.conf
       - source: tuposoft.com.conf
         target: /etc/nginx/conf.d/tuposoft.com.conf
     networks:
