@@ -1,0 +1,9 @@
+wireguard_addresses:
+  - "192.168.2.2/24"
+wireguard_endpoint: "158.220.92.85"
+
+docker:
+  node:
+    labels:
+      - "role=db"
+      - "zone=uk"

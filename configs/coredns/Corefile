@@ -1,0 +1,17 @@
+(tuposoft_internal) {
+  # Internal zone
+  file /etc/coredns/tuposoft.internal.zone tuposoft.internal
+  log
+  errors
+}
+
+. {
+  # Serve your internal zone first
+  import tuposoft_internal
+
+  # Forward everything else to upstream
+  forward . 1.1.1.1 8.8.8.8
+
+  cache 30
+  reload
+}

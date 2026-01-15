@@ -1,0 +1,9 @@
+version: '3.9'
+
+configs:
+  corefile:
+    name: corefile
+    file: overrides/coredns/configs/Corefile
+  tuposoft.internal.zone:
+    name: tuposoft.local.zone
+    file: overrides/coredns/configs/tuposoft.local.zone

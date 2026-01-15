@@ -1,0 +1,110 @@
+---
+- name: Install deps, Docker, and create/join a Swarm
+  hosts: swarm
+  become: true
+  gather_facts: true
+
+  vars:
+    swarm_advertise_addr: "192.168.57.11"
+    swarm_manager_host: "local-manager-1"
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install dependencies
+      apt:
+        name:
+          - jq
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+
+    - name: Ensure /etc/apt/keyrings exists
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Add Docker GPG key
+      get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: "0644"
+
+    - name: Add Docker apt repository
+      apt_repository:
+        repo: >-
+          deb [arch={{ ansible_architecture | replace('x86_64','amd64') }}
+          signed-by=/etc/apt/keyrings/docker.asc]
+          https://download.docker.com/linux/ubuntu
+          {{ ansible_distribution_release }} stable
+        state: present
+        filename: docker
+
+    - name: Install Docker Engine
+      apt:
+        update_cache: true
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+
+    - name: Ensure docker group exists
+      group:
+        name: docker
+        state: present
+
+    - name: Add user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: true
+
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Check swarm state (LocalNodeState)
+      command: docker info --format '{{ "{{" }} .Swarm.LocalNodeState {{ "}}" }}'
+      register: swarm_state
+      changed_when: false
+      failed_when: false
+
+    - name: Init swarm on manager-1 if not active
+      command: docker swarm init --advertise-addr {{ swarm_advertise_addr }}
+      when:
+        - inventory_hostname == swarm_manager_host
+        - swarm_state.stdout != "active"
+      register: swarm_init
+      changed_when: swarm_init.rc == 0
+
+    - name: Get manager join token from manager-1
+      command: docker swarm join-token manager -q
+      delegate_to: "{{ swarm_manager_host }}"
+      run_once: true
+      register: manager_token
+      changed_when: false
+
+    - name: Join swarm as manager on other nodes (if not active)
+      command: >-
+        docker swarm join --token {{ manager_token.stdout }} {{ swarm_advertise_addr }}:2377
+      when:
+        - inventory_hostname != swarm_manager_host
+        - swarm_state.stdout != "active"
+      register: swarm_join
+      changed_when: swarm_join.rc == 0
+
+    - name: Add node labels
+      command: >
+        docker node update
+        {% for label in docker.node.labels %} --label-add "{{ label }}" {% endfor %}
+        {{ inventory_hostname }}

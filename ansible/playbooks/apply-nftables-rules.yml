@@ -1,0 +1,75 @@
+- name: Apply nftables rules
+  hosts: swarm
+  become: true
+  serial: 1
+
+  vars:
+    wireguard_ifname: wg0
+    allowed_interfaces:
+      - "{{ wireguard_ifname }}"
+      - docker0
+      - docker_gwbridge
+
+  tasks:
+    - name: Install nftables
+      ansible.builtin.apt:
+        name: nftables
+        state: present
+        update_cache: true
+
+    - name: Ensure /etc/nftables.d exists
+      ansible.builtin.file:
+        path: /etc/nftables.d
+        state: directory
+        owner: root
+        group: root
+        mode: 0755
+
+    - name: Deploy nftables DOCKER-USER rules
+      ansible.builtin.template:
+        src: ../templates/docker-user.nft.j2
+        dest: /etc/nftables.d/docker-user.nft
+        owner: root
+        group: root
+        mode: 0644
+      notify: Load nft file
+
+    - name: Ensure /etc/nftables.conf includes /etc/nftables.d/*.nft
+      ansible.builtin.copy:
+        dest: /etc/nftables.conf
+        owner: root
+        group: root
+        mode: 0644
+        content: |
+          #!/usr/sbin/nft -f
+          flush ruleset
+          include "/etc/nftables.d/*.nft"
+
+    - name: Enable and start nftables service enabled
+      ansible.builtin.service:
+        name: nftables
+        enabled: true
+        state: started
+      notify:
+        - Reload nftables service
+        - Restart Docker to apply its iptables rules
+
+    - name: Flush handlers
+      meta: flush_handlers
+
+    - name: Wait between executions
+      ansible.builtin.pause: "{{ nftables.apply.pause }}"
+
+  handlers:
+    - name: Load nft file
+      ansible.builtin.command: nft -f /etc/nftables.d/docker-user.nft
+
+    - name: Reload nftables service
+      ansible.builtin.service:
+        name: nftables
+        state: reloaded
+
+    - name: Restart Docker to apply its iptables rules
+      ansible.builtin.service:
+        name: docker
+        state: restarted

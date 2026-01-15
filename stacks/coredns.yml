@@ -1,0 +1,22 @@
+version: '3.9'
+
+services:
+  coredns:
+    image: coredns/coredns:1.13.2
+    command: -conf /etc/coredns/Corefile
+    ports:
+      - "1053:53/udp"
+      - "1053:53/tcp"
+    configs:
+      - source: corefile
+        target: /etc/coredns/Corefile
+      - source: tuposoft.internal.zone
+        target: /etc/coredns/tuposoft.internal.zone
+
+configs:
+  corefile:
+    name: corefile-${GITHUB_RUN_ID}
+    file: ../configs/coredns/Corefile
+  tuposoft.internal.zone:
+    name: tuposoft.internal.zone-${GITHUB_RUN_ID}
+    file: ../configs/coredns/tuposoft.internal.zone

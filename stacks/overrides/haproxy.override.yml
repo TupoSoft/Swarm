@@ -1,0 +1,6 @@
+version: '3.9'
+
+configs:
+  haproxy.cfg:
+    name: haproxy.cfg
+    file: ../configs/haproxy/haproxy.cfg

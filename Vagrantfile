@@ -1,72 +1,67 @@
+require "vagrant"
+
 VAGRANTFILE_API_VERSION = "2"
 
 MANAGER_COUNT = 3
 MANAGER_IP_BASE = "192.168.56"
 MANAGER_IP_START = 11
+SSH_PORT_START = 2200
 VM_MEMORY = 2048
 VM_CPUS = 2
 
-Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.vm.box = "ubuntu/jammy64"
+# @param [VagrantPlugins::Kernel_V2::VMConfig] vm
+# @param [String] playbook
+# @param [String] run
+# @param [String] limit
+# @return [Void]
+def provision_ansible(vm, playbook, run: "once", limit: "swarm")
+  vm.provision playbook.split("/").last.sub(".yml", ""),
+    type: "ansible",
+    run: run,
+    playbook: playbook,
+    config_file: "ansible/ansible.cfg",
+    inventory_path: "ansible/inventory/local",
+    limit: limit
+end
 
-  config.vm.provider "virtualbox" do |v|
-      v.memory = VM_MEMORY
-      v.cpus = VM_CPUS
-  end
+# @param [VagrantPlugins::Kernel_V2::VMConfig] config
+# @param [Integer] index
+# @return [Void]
+def configure_node(config, index)
+  name = "local-manager-#{index}"
+  ssh_port = SSH_PORT_START + index - 1
+  node_ip = "#{MANAGER_IP_BASE}.#{MANAGER_IP_START + index - 1}"
 
-  (1..MANAGER_COUNT).each do |i|
-    name = "manager-#{i}"
+  config.define name do |node|
+    # @type [VagrantPlugins::Kernel_V2::VMConfig]
+    vm = node.vm
+    vm.hostname = name
+    vm.network :private_network, ip: node_ip
+    vm.network :forwarded_port, guest: 22, host: ssh_port, id: "ssh"
 
-    config.vm.define name do |node|
-      node.vm.hostname = name
-      ip_last = MANAGER_IP_START + i - 1
-      node.vm.network "private_network", ip: "#{MANAGER_IP_BASE}.#{ip_last}"
-
-      node.vm.provision "prune-volumes", type: "shell", run: "never", name: "Prune unused Docker volumes", inline: <<-SHELL
-        set -euo pipefail
-        if command -v docker >/dev/null 2>&1; then
-          echo "Pruning unused Docker volumes..."
-          sudo docker volume prune -af || true
-        else
-          echo "Docker not installed; skipping."
-        fi
-      SHELL
-
-      node.vm.provision "shell", name: "install dependencies", inline: <<-SHELL
-        apt-get update
-        apt-get install -y jq
-      SHELL
-
-      node.vm.provision "shell", name: "install docker", inline: <<-SHELL
-        if ! command -v docker &> /dev/null; then
-          curl -fsSL https://get.docker.com -o get-docker.sh
-          sh ./get-docker.sh
-          rm get-docker.sh
-        fi
-        groupadd -f docker
-        usermod -aG docker vagrant
-        newgrp docker
-      SHELL
-
-      if name == 'manager-1'
-        node.vm.provision "shell", name: "init a cluster", inline: <<-SHELL
-          if ! docker info | grep -q "Swarm: active"; then
-            docker swarm init --advertise-addr 192.168.56.11
-          fi
-          docker swarm join-token manager -q > /vagrant/.vagrant/manager-token
-        SHELL
-      else
-        node.vm.provision "shell", name: "join the cluster", inline: <<-SHELL
-          if ! docker info | grep -q "Swarm: active"; then
-            while [ ! -f /vagrant/.vagrant/manager-token ]; do sleep 2; done
-            TOKEN=$(cat /vagrant/.vagrant/manager-token)
-            docker swarm join --token $TOKEN 192.168.56.11:2377
-          fi
-        SHELL
-      end
+    if index == MANAGER_COUNT
+      provision_ansible vm, "ansible/playbooks/prune-unused-docker-volumes.yml", run: "never"
+      provision_ansible vm, "ansible/playbooks/wireguard.yml"
+      provision_ansible vm, "ansible/playbooks/swarm.yml"
+      provision_ansible vm, "ansible/playbooks/apply-nftables-rules.yml"
     end
   end
 end
 
-local_vagrantfile = File.join(File.dirname(__FILE__), 'Vagrantfile.local')
+# @type [Vagrant::Plugin::V1::Guest] config
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  # @type [VagrantPlugins::Kernel_V2::VMConfig]
+  vm = config.vm
+
+  vm.box = "ubuntu/jammy64"
+
+  vm.provider :virtualbox do |v|
+    v.memory = VM_MEMORY
+    v.cpus = VM_CPUS
+  end
+
+  (1..MANAGER_COUNT).each { |index| configure_node config.vm, index }
+end
+
+local_vagrantfile = File.join(File.dirname(__FILE__), "Vagrantfile.local")
 load local_vagrantfile if File.exist?(local_vagrantfile)

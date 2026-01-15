@@ -1,0 +1,8 @@
+wireguard_preup:
+  - echo 1 > /proc/sys/net/ipv4/ip_forward
+wireguard_postup:
+  - resolvectl dns %i 192.168.57.11:1053
+  - resolvectl domain %i tuposoft.local
+  - resolvectl default-route %i false
+wireguard_predown:
+  - resolvectl revert %i
