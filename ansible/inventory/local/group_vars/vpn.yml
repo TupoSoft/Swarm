@@ -6,3 +6,4 @@ wireguard_postup:
   - resolvectl default-route %i false
 wireguard_predown:
   - resolvectl revert %i
+wireguard_interface_restart: true
