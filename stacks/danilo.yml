@@ -1,0 +1,25 @@
+version: '3.9'
+
+services:
+  danilo:
+    image: ghcr.io/tuposoft/danilo:latest
+    environment:
+      BOT_TOKEN_FILE: /run/secrets/danilo_bot_token
+      GITHUB_TOKEN_FILE: /run/secrets/danilo_github_token
+      OPENAI_API_TOKEN_FILE: /run/secrets/danilo_openai_api_token
+      ADMIN_TELEGRAM_IDS: 1685200265,128558128
+      GITHUB_ORG: TupoSoft
+      TELEGRAM_CHAT_ID: -1002153574949
+      TELEGRAM_FUN_THREAD_ID: 275
+    secrets:
+      - danilo_bot_token
+      - danilo_github_token
+      - danilo_openai_api_token
+
+secrets:
+  danilo_bot_token:
+    external: true
+  danilo_github_token:
+    external: true
+  danilo_openai_api_token:
+    external: true
