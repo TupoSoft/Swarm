@@ -15,6 +15,8 @@ services:
 #        target: /etc/nginx/conf.d/api.leademailfinder.com.conf
       - source: tuposoft.com.conf
         target: /etc/nginx/conf.d/tuposoft.com.conf
+      - source: cena.tuposoft.com.conf
+        target: /etc/nginx/conf.d/cena.tuposoft.com.conf
     networks:
       - default
       - email_default
@@ -45,15 +47,19 @@ secrets:
 configs:
   api.leademailfinder.com.conf:
     name: api.leademailfinder.com.conf-${GITHUB_RUN_ID}
-    file: ../configs/api.leademailfinder.com.conf
+    file: ../configs/nginx/api.leademailfinder.com.conf
   tuposoft.com.conf:
     name: tuposoft.com.conf-${GITHUB_RUN_ID}
-    file: ../configs/tuposoft.com.conf
-
+    file: ../configs/nginx/tuposoft.com.conf
+  cena.tuposoft.com.conf:
+    name: cena.tuposoft.com.conf-${GITHUB_RUN_ID}
+    file: ../configs/nginx/cena.tuposoft.com.conf
 
 networks:
   default:
   email_default:
     external: true
   tuposoftcom_default:
+    external: true
+  cena_default:
     external: true
