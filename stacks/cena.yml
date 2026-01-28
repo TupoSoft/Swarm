@@ -1,0 +1,22 @@
+version: '3.9'
+
+services:
+  cena:
+    image: ghcr.io/tuposoft/cena-api:latest
+    environment:
+      DATABASE_URL_FILE: /run/secrets/cena_api_database_url
+    secrets:
+      - cena_api_database_url
+    networks:
+      - default
+      - haproxy_default
+
+secrets:
+  cena_api_database_url:
+    name: cena_api_database_url_28012026
+    external: true
+
+networks:
+  default:
+  haproxy_default:
+    external: true

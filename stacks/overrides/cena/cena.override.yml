@@ -1,0 +1,6 @@
+version: '3.9'
+
+secrets:
+  cena_api_database_url:
+    name: cena_api_database_url
+    file: overrides/cena/secrets/database_url
