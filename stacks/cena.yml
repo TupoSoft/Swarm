@@ -13,7 +13,7 @@ services:
 
 secrets:
   cena_api_database_url:
-    name: cena_api_database_url_28012026
+    name: cena_api_database_url_30012026
     external: true
 
 networks:
