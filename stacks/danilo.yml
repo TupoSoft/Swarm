@@ -20,6 +20,7 @@ secrets:
   danilo_bot_token:
     external: true
   danilo_github_token:
+    name: danilo_github_token_30012026
     external: true
   danilo_openai_api_token:
     external: true
