@@ -1,17 +1,76 @@
 name: Deploy GitHub Actions Runner
+
 on:
   workflow_dispatch:
   schedule:
     - cron: '0 18 * * *'
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   deploy-stack:
     name: Deploy GitHub Actions Runner Stack
-    uses: TupoSoft/GitHubActions/.github/workflows/swarm-deploy.yml@master
-    with:
-      stack_name: gh-actions-runner
-      stack_file: gh-actions-runner/gh-actions-runner.yml
-      runners: 'ubuntu-latest'
-    secrets: inherit
+    if: github.ref == 'refs/heads/master'
+    # Bootstrap uses the existing pool; later runs can use its upgraded replacements.
+    runs-on: [self-hosted, swarm, ubuntu-22]
+    timeout-minutes: 15
     concurrency:
       group: deploy-stack-gh-actions-runner
+      cancel-in-progress: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Deploy runner stack
+        shell: bash
+        env:
+          SWARM_PRIVATE_KEY: ${{ secrets.DOCKER_SWARM_CLUSTER_PRIVATE_KEY }}
+          SWARM_HOST: ${{ secrets.DOCKER_SWARM_CLUSTER_HOST }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          case "$SWARM_HOST" in
+            ssh://*) ;;
+            *) echo 'DOCKER_SWARM_CLUSTER_HOST must be an ssh:// Docker endpoint.' >&2; exit 1 ;;
+          esac
+
+          deploy_tmp=$(mktemp -d "$RUNNER_TEMP/runner-deploy.XXXXXX")
+          trap 'rm -rf "$deploy_tmp"' EXIT
+          chmod 700 "$deploy_tmp"
+          mkdir "$deploy_tmp/bin" "$deploy_tmp/docker"
+          printf '%s\n' "$SWARM_PRIVATE_KEY" > "$deploy_tmp/id_ed25519"
+          chmod 600 "$deploy_tmp/id_ed25519"
+          unset SWARM_PRIVATE_KEY
+
+          export RUNNER_DEPLOY_SSH
+          RUNNER_DEPLOY_SSH=$(command -v ssh)
+          export RUNNER_DEPLOY_SSH_CONFIG="$deploy_tmp/ssh_config"
+          cat > "$RUNNER_DEPLOY_SSH_CONFIG" <<EOF
+          Host *
+            IdentityFile $deploy_tmp/id_ed25519
+            IdentitiesOnly yes
+            BatchMode yes
+            StrictHostKeyChecking accept-new
+            UserKnownHostsFile $deploy_tmp/known_hosts
+          EOF
+          cat > "$deploy_tmp/bin/ssh" <<'EOF'
+          #!/bin/sh
+          exec "$RUNNER_DEPLOY_SSH" -F "$RUNNER_DEPLOY_SSH_CONFIG" "$@"
+          EOF
+          chmod 700 "$deploy_tmp/bin/ssh"
+
+          export PATH="$deploy_tmp/bin:$PATH"
+          export DOCKER_CONFIG="$deploy_tmp/docker"
+          export DOCKER_HOST="$SWARM_HOST"
+          unset DOCKER_CONTEXT
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io \
+            --username "$GITHUB_ACTOR" --password-stdin
+          unset REGISTRY_TOKEN
+
+          # Detach: replacing the runner service can terminate this job's own task.
+          docker stack deploy --with-registry-auth --prune --detach=true \
+            -c gh-actions-runner/gh-actions-runner.yml gh-actions-runner

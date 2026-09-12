@@ -10,7 +10,7 @@ concurrency:
 jobs:
   get-stacks:
     name: Get Stacks to Deploy
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, swarm, ubuntu-22, docker-isolated]
     outputs:
       stack_data: ${{ steps.process-stacks.outputs.stack_data }}
     steps:
@@ -41,10 +41,10 @@ jobs:
           
             case "$file" in  
               *.yml|*.yaml)
-                filename=`basename "$file"`
+                filename=$(basename "$file")
                 stack_name="${filename%.*}"
               
-                if [ $stack_data != '[' ]
+                if [ "$stack_data" != '[' ]
                 then
                   stack_data="${stack_data},"
                 fi
@@ -69,6 +69,7 @@ jobs:
     with:
       stack_name: ${{ matrix.stack.stack_name }}
       stack_file: ${{ matrix.stack.stack_file }}
+      runners: '["self-hosted","swarm","ubuntu-22","docker-isolated"]'
     secrets: inherit
     concurrency:
       group: deploy-stack-${{ matrix.stack.stack_name }}

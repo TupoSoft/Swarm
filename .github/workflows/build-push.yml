@@ -5,18 +5,66 @@ on:
     branches:
       - master
     paths:
-      - gh-actions-runner/Dockerfile
+      - gh-actions-runner/**
+      - .github/workflows/build-push.yml
+  pull_request:
+    paths:
+      - gh-actions-runner/**
+      - .github/workflows/build-push.yml
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runner-image-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build-push:
-    uses: TupoSoft/GitHubActions/.github/workflows/build-push.yml@master
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    # Publishing must remain available on the old pool to bootstrap its replacement.
+    runs-on: ${{ fromJSON(github.event_name == 'pull_request' && '["self-hosted","swarm","ubuntu-22","docker-isolated"]' || '["self-hosted","swarm","ubuntu-22"]') }}
+    timeout-minutes: 30
     permissions:
       packages: write
       contents: read
-    secrets: inherit
-    with:
-      image-name: gh-actions-runner
-      dockerfile: gh-actions-runner/Dockerfile
-      build-args: |
-        RUNNER_VERSION=2.333.1
+    steps:
+      # Node 20 actions keep bootstrap compatible with older runner versions.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Test runner lifecycle and Docker isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -cf - gh-actions-runner | docker run --rm -i --workdir /workspace \
+            python:3.12-slim-bookworm sh -c \
+            'tar -xf -; python3 -m unittest discover -s gh-actions-runner/tests -v'
+
+      - name: Log in to the container registry
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          platforms: linux/amd64
+
+      - name: Build runner image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: gh-actions-runner/Dockerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/master' }}
+          # Keep the old stack's latest image unchanged until its stack is upgraded.
+          tags: ghcr.io/tuposoft/gh-actions-runner:self-hosted-ci
+          build-args: |
+            RUNNER_VERSION=2.337.0
