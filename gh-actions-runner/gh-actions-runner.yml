@@ -1,51 +1,50 @@
-#file: noinspection ComposeUnknownValues, line 46
-
 version: "3.8"
 
 services:
   actions-runner:
-    image: ghcr.io/tuposoft/gh-actions-runner:latest
+    image: ghcr.io/tuposoft/gh-actions-runner:self-hosted-ci
     deploy:
-      replicas: 6
+      # Start with one job at a time; each launcher reserves capacity for its two siblings.
+      replicas: 1
       update_config:
         parallelism: 1
         delay: 5s
-        order: start-first
+        order: stop-first
         failure_action: rollback
         monitor: 15s
       rollback_config:
-        order: start-first
+        order: stop-first
       restart_policy:
-        condition: on-failure
+        condition: any
+        delay: 5s
       resources:
-        limits:
-          cpus: "1.0"
-          memory: 1G
         reservations:
-          cpus: "0.5"
-          memory: 512M
+          cpus: "4.0"
+          memory: 8G
       placement:
+        constraints:
+          - node.platform.os == linux
+          - node.platform.arch == x86_64
         preferences:
           - spread: node.hostname
+    stop_grace_period: 2m
     secrets:
       - gh_pat
-    configs:
-      - source: runner_entrypoint
-        target: /entrypoint.sh
-        mode: 0755
     environment:
-      RUNNER_ORG: "TupoSoft"
-      RUNNER_LABELS: "swarm,ubuntu-22"
-      GH_PAT_SECRET_FILE_PATH: "/run/secrets/gh_pat"
+      RUNNER_ORG: TupoSoft
+      RUNNER_LABELS: swarm,ubuntu-22,docker-isolated
+      GH_PAT_SECRET_FILE_PATH: /run/secrets/gh_pat
+      DIND_IMAGE: docker:29.6.1-dind
+      RUNNER_CPUS: "2"
+      RUNNER_MEMORY: 4g
+      DIND_CPUS: "2"
+      DIND_MEMORY: 4g
+      RUNNER_SHM_SIZE: 1g
     volumes:
+      # Used only by the launcher. Neither job container receives this mount.
       - /var/run/docker.sock:/var/run/docker.sock
 
 secrets:
   gh_pat:
     name: gh_pat_20260912
     external: true
-
-configs:
-  runner_entrypoint:
-    name: github_actions_runner_entrypoint_${GITHUB_RUN_ID}.sh
-    file: entrypoint.sh

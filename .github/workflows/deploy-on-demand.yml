@@ -14,15 +14,17 @@ concurrency:
 jobs:
   parse-stack-list:
     name: Prepare Stack Set for Matrix
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, swarm, ubuntu-22, docker-isolated]
     outputs:
       stacks: ${{ steps.parse.outputs.stacks }}
     steps:
       - name: Convert comma-separated input to JSON array
         id: parse
         shell: sh
+        env:
+          STACKS_INPUT: ${{ inputs.stacks }}
         run: |
-          stacks=`echo -n "${{ inputs.stacks }}" | jq -Rsc 'split(",") | map(gsub("^[ \t]+|[ \t]+$"; ""))'`
+          stacks=$(printf '%s' "$STACKS_INPUT" | jq -Rsc 'split(",") | map(gsub("^[ \t]+|[ \t]+$"; ""))')
           echo "stacks=$stacks" >> "$GITHUB_OUTPUT"
 
   deploy-stack:
@@ -36,6 +38,7 @@ jobs:
     with:
       stack_name: ${{ matrix.stack }}
       stack_file: stacks/${{ matrix.stack }}.yml
+      runners: '["self-hosted","swarm","ubuntu-22","docker-isolated"]'
     secrets: inherit
     concurrency:
       group: deploy-stack-${{ matrix.stack }}
