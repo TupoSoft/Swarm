@@ -44,12 +44,14 @@ Build and deploy the Swarm changes before enabling LeadEmailFinder's new runner 
    It leaves the previous `latest` tag intact. Pull requests from this repository build without publishing
    on the existing pool, so they can validate the image before the isolated pool is deployed. Builds from
    fork pull requests remain disabled.
-3. Run **Deploy GitHub Actions Runner**. Its bootstrap job also supports the old pool. It uses temporary
+3. Configure the registry pull credentials described below. The deployment workflow requires these settings
+   and checks access to the runner image before submitting an update.
+4. Run **Deploy GitHub Actions Runner**. Its bootstrap job also supports the old pool. It uses temporary
    SSH credentials and Docker configuration, then submits the stack update without waiting for it to
    converge. Replacing a runner service can stop a job, so deploy during a quiet period.
-4. Check Swarm service convergence and confirm that a worker with all four labels is online in GitHub.
+5. Check Swarm service convergence and confirm that a worker with all four labels is online in GitHub.
    A successful deployment job proves only that the update was submitted.
-5. Enable LeadEmailFinder's workflow changes. Run full validation, including backend service containers,
+6. Enable LeadEmailFinder's workflow changes. Run full validation, including backend service containers,
    the browser stack reset and cleanup, and an ExecPlan synchronization dry run. Confirm that a second
    job starts with a fresh workspace and Docker daemon.
 
@@ -60,6 +62,35 @@ and retain their existing remote Docker deployment behavior.
 For rollback, restore the preceding runner stack configuration and its `latest` image, then restore
 the preceding consumer labels if necessary. Existing jobs requiring `docker-isolated` will queue until
 that pool is available. Never add the isolation label to a runner that shares the host Docker daemon.
+
+## Registry Pull Credentials
+
+Swarm can pull the private runner image after the deployment job ends or when it schedules a replacement
+task. The job's `GITHUB_TOKEN` expires when the job finishes, so detached deployment requires a separate
+credential that remains valid for those pulls. Image publishing still uses its own `GITHUB_TOKEN`.
+
+Create a dedicated personal access token (classic) with `read:packages`. Its owner must have read access to
+the `TupoSoft/gh-actions-runner` package. If the organization uses single sign-on, authorize the token for it.
+Use this package credential separately from the runner registration secret. See
+[GitHub's container registry authentication requirements](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
+and [job token lifetime](https://docs.github.com/en/actions/concepts/security/github_token).
+
+Set the following in the `TupoSoft/Swarm` repository. These commands prompt for the username and token;
+enter the token through the secret prompt:
+
+```bash
+gh variable set GHCR_PULL_USERNAME --repo TupoSoft/Swarm
+gh secret set GHCR_PULL_TOKEN --repo TupoSoft/Swarm
+```
+
+`GHCR_PULL_USERNAME` must be the token owner's GitHub username. The deployment checks both settings,
+logs in through standard input, and verifies access to `:self-hosted-ci` before updating the stack.
+Swarm receives the registry credentials through `--with-registry-auth`; the workflow removes its temporary
+SSH and Docker configuration when it exits.
+
+Rotate the token before expiration and rerun deployment to refresh the credentials stored by Swarm.
+Confirm that the service runs one `:self-hosted-ci` replica and that the isolated worker registers in GitHub.
+Workflow success alone does not establish service convergence.
 
 ## Local Validation
 

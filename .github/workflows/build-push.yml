@@ -7,10 +7,12 @@ on:
     paths:
       - gh-actions-runner/**
       - .github/workflows/build-push.yml
+      - .github/workflows/deploy-gh-actions-runner.yml
   pull_request:
     paths:
       - gh-actions-runner/**
       - .github/workflows/build-push.yml
+      - .github/workflows/deploy-gh-actions-runner.yml
   workflow_dispatch:
 
 permissions:
@@ -36,11 +38,12 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Test runner lifecycle and Docker isolation
+      - name: Test runner lifecycle, Docker isolation, and deployment
         shell: bash
         run: |
           set -euo pipefail
-          tar -cf - gh-actions-runner | docker run --rm -i --workdir /workspace \
+          tar -cf - gh-actions-runner .github/workflows/deploy-gh-actions-runner.yml | \
+            docker run --rm -i --workdir /workspace \
             python:3.12-slim-bookworm sh -c \
             'tar -xf -; python3 -m unittest discover -s gh-actions-runner/tests -v'
 
