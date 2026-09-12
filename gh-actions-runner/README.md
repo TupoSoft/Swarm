@@ -18,11 +18,21 @@ selected by the consuming workflow. The Ruby tool cache at `/opt/hostedtoolcache
 
 ## Capacity and Lifecycle
 
-The initial stack has one launcher replica. Each worker is limited to two CPUs and a memory limit of `4g`, and
-its Docker daemon has the same limits. Each launcher reserves four CPUs and a memory reservation of `8G` in Swarm to account
-for these sibling containers. A node needs that available capacity before Swarm will schedule a slot.
-Increase replicas only after checking capacity, and update the Swarm reservation whenever the worker
-or daemon limits change. The existing development VM definition is not a sizing recommendation.
+The stack has two launcher replicas, allowing up to two GitHub Actions jobs to run concurrently.
+Each worker is limited to two CPUs and a memory limit of `4g`, and its Docker daemon has the same limits.
+Each launcher reserves three CPUs and a memory reservation of `8G` in Swarm. The two slots therefore
+reserve six CPUs and `16G` of memory. A node needs the available reservation before Swarm will schedule a slot.
+
+The CPU reservation is a scheduling budget, below the combined four-CPU limit of each worker and daemon.
+It allows two slots to fit on an eight-CPU node while leaving some CPU capacity unreserved for other services.
+Both pairs can demand eight CPUs together, so jobs may take longer when their peaks overlap with other work.
+This reservation is a starting point, not a measured minimum. Memory reservations still cover the combined
+worker and daemon limits. Allow additional capacity for the launchers, host, and other services.
+Increase replicas only after checking capacity, and review the reservations whenever the worker or daemon
+limits change. The existing development VM definition is not a sizing recommendation.
+
+The rolling update setting `parallelism: 1` replaces one launcher at a time during deployment. It does not
+limit concurrent jobs; `replicas` controls the number of available slots.
 
 After the job ends, the launcher removes its worker, daemon, and three named volumes. Failed startup
 and ordinary termination use the same cleanup. A new Swarm task starts another fresh pair. The launcher
@@ -49,11 +59,12 @@ Build and deploy the Swarm changes before enabling LeadEmailFinder's new runner 
 4. Run **Deploy GitHub Actions Runner**. Its bootstrap job also supports the old pool. It uses temporary
    SSH credentials and Docker configuration, then submits the stack update without waiting for it to
    converge. Replacing a runner service can stop a job, so deploy during a quiet period.
-5. Check Swarm service convergence and confirm that a worker with all four labels is online in GitHub.
+5. Check Swarm service convergence and confirm that both workers with all four labels are online in GitHub.
    A successful deployment job proves only that the update was submitted.
 6. Enable LeadEmailFinder's workflow changes. Run full validation, including backend service containers,
    the browser stack reset and cleanup, and an ExecPlan synchronization dry run. Confirm that a second
-   job starts with a fresh workspace and Docker daemon.
+   job can run concurrently with its own workspace and Docker daemon, and that cleanup for one job
+   leaves the other job running.
 
 The deployment workflow also retains its daily schedule. Image publishing is limited to `master`;
 the deployment job also requires `master`. General stack deployment workflows use the isolated pool
@@ -89,7 +100,7 @@ Swarm receives the registry credentials through `--with-registry-auth`; the work
 SSH and Docker configuration when it exits.
 
 Rotate the token before expiration and rerun deployment to refresh the credentials stored by Swarm.
-Confirm that the service runs one `:self-hosted-ci` replica and that the isolated worker registers in GitHub.
+Confirm that the service runs two `:self-hosted-ci` replicas and that both isolated workers register in GitHub.
 Workflow success alone does not establish service convergence.
 
 ## Local Validation
