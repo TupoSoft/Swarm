@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
     jq \
+    gettext-base \
     ca-certificates \
     sudo \
     tini \
