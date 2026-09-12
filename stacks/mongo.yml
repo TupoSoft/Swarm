@@ -94,6 +94,10 @@ services:
 
   mgob:
     image: maxisam/mgob:2.0.27-minio
+    deploy:
+      placement:
+        constraints:
+          - node.labels.ci_optional != true
     entrypoint: sh
     command:
       - -c

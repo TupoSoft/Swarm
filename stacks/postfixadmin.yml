@@ -3,6 +3,10 @@ version: '3.9'
 services:
   postfixadmin:
     image: postfixadmin:4-fpm-alpine
+    deploy:
+      placement:
+        constraints:
+          - node.labels.ci_optional != true
     secrets:
       - source: config
         target: /var/www/html/config.local.php

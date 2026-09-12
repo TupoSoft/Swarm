@@ -3,6 +3,10 @@ version: '3.9'
 services:
   danilo:
     image: ghcr.io/tuposoft/danilo:latest
+    deploy:
+      placement:
+        constraints:
+          - node.labels.ci_optional != true
     environment:
       BOT_TOKEN_FILE: /run/secrets/danilo_bot_token
       GITHUB_TOKEN_FILE: /run/secrets/danilo_github_token

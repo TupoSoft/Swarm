@@ -3,6 +3,10 @@ version: '3.9'
 services:
   cena:
     image: ghcr.io/tuposoft/cena-api:latest
+    deploy:
+      placement:
+        constraints:
+          - node.labels.ci_optional != true
     environment:
       DATABASE_URL_FILE: /run/secrets/cena_api_database_url
     secrets:

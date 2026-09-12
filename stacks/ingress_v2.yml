@@ -27,6 +27,9 @@ services:
       timeout: 10s
     deploy:
       mode: global
+      placement:
+        constraints:
+          - node.labels.ci_optional != true
       update_config:
         parallelism: 1
         order: start-first

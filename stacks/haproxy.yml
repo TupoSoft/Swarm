@@ -3,6 +3,10 @@ version: '3.9'
 services:
   haproxy:
     image: haproxy:lts-alpine
+    deploy:
+      placement:
+        constraints:
+          - node.labels.ci_optional != true
     configs:
       - source: haproxy.cfg
         target: /usr/local/etc/haproxy/haproxy.cfg

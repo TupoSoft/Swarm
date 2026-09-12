@@ -3,6 +3,10 @@ version: '3.9'
 services:
   coredns:
     image: coredns/coredns:1.13.2
+    deploy:
+      placement:
+        constraints:
+          - node.labels.ci_optional != true
     command: -conf /etc/coredns/Corefile
     ports:
       - "1053:53/udp"
