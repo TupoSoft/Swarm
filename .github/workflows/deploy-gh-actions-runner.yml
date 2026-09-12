@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: read
-  packages: read
 
 jobs:
   deploy-stack:
@@ -30,9 +29,13 @@ jobs:
         env:
           SWARM_PRIVATE_KEY: ${{ secrets.DOCKER_SWARM_CLUSTER_PRIVATE_KEY }}
           SWARM_HOST: ${{ secrets.DOCKER_SWARM_CLUSTER_HOST }}
-          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Swarm pulls after this job ends, when GITHUB_TOKEN has expired.
+          REGISTRY_USERNAME: ${{ vars.GHCR_PULL_USERNAME }}
+          REGISTRY_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
         run: |
           set -euo pipefail
+          : "${REGISTRY_USERNAME:?Set the GHCR_PULL_USERNAME repository variable to the GitHub username that owns the pull token.}"
+          : "${REGISTRY_TOKEN:?Set the GHCR_PULL_TOKEN repository secret to a classic PAT with read:packages.}"
           case "$SWARM_HOST" in
             ssh://*) ;;
             *) echo 'DOCKER_SWARM_CLUSTER_HOST must be an ssh:// Docker endpoint.' >&2; exit 1 ;;
@@ -68,8 +71,11 @@ jobs:
           export DOCKER_HOST="$SWARM_HOST"
           unset DOCKER_CONTEXT
           printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io \
-            --username "$GITHUB_ACTOR" --password-stdin
+            --username "$REGISTRY_USERNAME" --password-stdin
           unset REGISTRY_TOKEN
+
+          # Check access to this package before submitting a service update.
+          docker manifest inspect ghcr.io/tuposoft/gh-actions-runner:self-hosted-ci >/dev/null
 
           # Detach: replacing the runner service can terminate this job's own task.
           docker stack deploy --with-registry-auth --prune --detach=true \
