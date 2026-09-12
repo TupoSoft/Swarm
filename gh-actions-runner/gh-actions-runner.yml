@@ -42,7 +42,7 @@ services:
 
 secrets:
   gh_pat:
-    name: gh_pat_19062025
+    name: gh_pat_20260912
     external: true
 
 configs:
