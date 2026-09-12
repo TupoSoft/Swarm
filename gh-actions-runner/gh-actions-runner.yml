@@ -4,8 +4,8 @@ services:
   actions-runner:
     image: ghcr.io/tuposoft/gh-actions-runner:self-hosted-ci
     deploy:
-      # Start with one job at a time; each launcher reserves capacity for its two siblings.
-      replicas: 1
+      # Each launcher runs one isolated job; two replicas allow concurrent jobs.
+      replicas: 2
       update_config:
         parallelism: 1
         delay: 5s
@@ -19,7 +19,8 @@ services:
         delay: 5s
       resources:
         reservations:
-          cpus: "4.0"
+          # Reserve a scheduling budget; each pair can use up to four CPUs.
+          cpus: "3.0"
           memory: 8G
       placement:
         constraints:
