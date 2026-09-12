@@ -23,8 +23,8 @@ concurrency:
 jobs:
   build-push:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    # Publishing must remain available on the old pool to bootstrap its replacement.
-    runs-on: ${{ fromJSON(github.event_name == 'pull_request' && '["self-hosted","swarm","ubuntu-22","docker-isolated"]' || '["self-hosted","swarm","ubuntu-22"]') }}
+    # PR validation and publishing must use the existing pool to bootstrap its replacement.
+    runs-on: [self-hosted, swarm, ubuntu-22]
     timeout-minutes: 30
     permissions:
       packages: write

@@ -41,8 +41,9 @@ Build and deploy the Swarm changes before enabling LeadEmailFinder's new runner 
    permission to register and remove runners for `TupoSoft`. Preserve its existing value.
 2. Run **Build and Push Images** on `master`. Its Node 20 actions can execute on the old runner pool.
    The workflow tests the lifecycle scripts and publishes `ghcr.io/tuposoft/gh-actions-runner:self-hosted-ci`.
-   It leaves the previous `latest` tag intact. Pull requests build without publishing and require the
-   isolated pool, so the first infrastructure change also needs the local validation below.
+   It leaves the previous `latest` tag intact. Pull requests from this repository build without publishing
+   on the existing pool, so they can validate the image before the isolated pool is deployed. Builds from
+   fork pull requests remain disabled.
 3. Run **Deploy GitHub Actions Runner**. Its bootstrap job also supports the old pool. It uses temporary
    SSH credentials and Docker configuration, then submits the stack update without waiting for it to
    converge. Replacing a runner service can stop a job, so deploy during a quiet period.

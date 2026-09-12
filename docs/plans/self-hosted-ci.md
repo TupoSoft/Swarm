@@ -20,6 +20,7 @@ The new pool advertises `self-hosted`, `swarm`, `ubuntu-22`, and `docker-isolate
 - [x] (2026-09-12) Rebuild the final entry point layer and verify runner, Node, Compose, and workspace mounts.
 - [x] (2026-09-12) Verify private daemons, localhost services, workspace mounts, and Ruby setup with the final image.
 - [x] (2026-09-12) Prepare the source for review against current `master`, preserving its updated secret reference.
+- [x] (2026-09-12) Route bootstrap pull request builds to the existing pool so they can run before deployment.
 - [ ] (2026-09-12) After separate operational authorization, deploy the pool and record live isolation and CI evidence.
 
 ## Plan dependencies
@@ -36,9 +37,15 @@ None.
   image has been published and deployed.
 - (2026-09-12) Publication checks found newer `master` commits that selected runner `2.333.1` and secret
   `gh_pat_20260912`. This change advances the runner to `2.337.0` and preserves that secret reference.
+- (2026-09-12) Swarm PR #70 queued because its build requested `docker-isolated` before that pool existed.
+  Bootstrap pull request validation must use the same existing pool as image publishing.
 
 ## Decision Log
 
+- Decision: Use `self-hosted`, `swarm`, and `ubuntu-22` for every bootstrap image build event.
+  Rationale: Pull request validation must run before the image creates the isolated pool. The existing
+  repository check excludes fork pull requests, and registry login and publishing still require `master`.
+  Date/Author: 2026-09-12, correction after the reported queued build.
 - Decision: Keep the Swarm host socket and GitHub personal access token only in a trusted launcher.
   Rationale: The launcher provisions and cleans up job resources; application jobs receive only a private daemon
   socket and the short-lived token needed to register their ephemeral worker.
@@ -129,7 +136,8 @@ continues to deploy runner configuration after the source change merges.
 - Success, worker failure, interrupted startup, and graceful signals remove exactly the owned worker pair and
   volumes while preserving unrelated Docker resources.
 - Worker and daemon limits, launcher reservation, and initial replica count match the documented budgets.
-- Image publishing can bootstrap from the previous pool, and runner deployment preserves manual and nightly triggers.
+- Image validation and publishing can bootstrap from the previous pool. Fork pull requests cannot run the build,
+  and pull request builds cannot log in to the registry or publish images. Runner deployment preserves its triggers.
 - Focused automated checks pass. After authorized rollout, live tests prove daemon separation, fresh state across
   consecutive jobs, and successful LeadEmailFinder validation. Runtime criteria remain pending until observed.
 
