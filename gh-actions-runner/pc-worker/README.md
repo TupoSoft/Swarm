@@ -1,150 +1,164 @@
-# Optional PC Worker
+# Optional PC Worker from WSL
 
-A dedicated Ubuntu 24.04 Hyper-V virtual machine can contribute one GitHub Actions job slot while the
-PC is awake and connected. Vagrant manages the VM, which joins Swarm as a worker. The permanent
-server runner pool keeps its existing replica count and resource settings.
+Run Linux Vagrant and Ansible inside WSL to manage a dedicated Ubuntu 24.04 Hyper-V VM.
+The VM contributes one GitHub Actions job slot while the PC is awake and connected.
+It has its own kernel, networking, filesystem, and Docker daemon. The permanent server
+runner pool keeps its existing capacity.
 
-## Virtual Machine and Docker
+## Prerequisites
 
-The [VM definition](Vagrantfile) creates the VM named `pc-swarm-worker`, with the same Linux hostname.
-It has its own Linux kernel, network interfaces, filesystem, and Docker daemon. The VM has six virtual
-CPUs and `12 GiB` of memory, leaving capacity for the guest operating system beyond the runner's
-reservation described below. It uses the community-maintained
-`gusztavvargadr/ubuntu-server-2404-lts` box, pinned to version `2607.0.0` for Hyper-V on AMD64.
+Use Linux Vagrant 2.4.9 or newer inside WSL, with the same Vagrant version installed on
+Windows. Install the full Ansible package, Python 3, OpenSSH, and the standard `ip`,
+`findmnt`, and `wslpath` tools in WSL. Windows needs Hyper-V and its `Default Switch`.
+See [Vagrant's WSL instructions](https://developer.hashicorp.com/vagrant/docs/other/wsl).
 
-Run Vagrant from an elevated Windows PowerShell session with Hyper-V enabled. See
-[Vagrant's Hyper-V provider documentation](https://developer.hashicorp.com/vagrant/docs/providers/hyperv).
-Use the Hyper-V `Default Switch` for outbound connectivity through NAT. Vagrant's Hyper-V provider
-does not create or configure virtual switches; it uses an existing switch. See the
-[provider's networking limitations](https://developer.hashicorp.com/vagrant/docs/providers/hyperv/limitations).
+Start WSL from a Windows Terminal session with permission to manage Hyper-V virtual machines. Windows
+administrator access or membership in Hyper-V Administrators is required. Linux `sudo`
+does not grant Windows permissions. Windows executable interoperability must be enabled.
+All commands below run inside WSL.
 
-The Swarm worker needs Docker Engine running as root because rootless Docker does not support the
-required overlay networking. See [Docker's rootless limitations](https://docs.docker.com/engine/security/rootless/troubleshoot/#known-limitations).
-The [bootstrap script](bootstrap.sh) prepares Docker and WireGuard tools inside the Ubuntu 24.04 guest.
-Docker uses its standard `docker0` bridge within the VM. Repeated provisioning preserves existing
-Docker daemon configuration and the guest's WireGuard private key. Shared host folders are disabled.
-Before explicitly rerunning provisioning, finish any active job and drain the node using the shutdown
-sequence below. Provisioning can upgrade Docker packages and restart the daemon. Ordinary `vagrant up`
-after initial creation does not rerun provisioning.
+Keep a full checkout of this repository on the Linux filesystem. Provisioning uses the
+shared Ansible files under `ansible/`, so copying this directory alone is insufficient.
 
-The guest reaches the cluster through WireGuard. Keep its private keys and Swarm join tokens outside
-the repository. Review the VM's Docker address pools against the VPN and cluster networks before
-joining.
+## Start the Worker
 
-## Network and Placement
-
-Use a private VPN connection between `<PC_VPN_IP>` and `<MANAGER_VPN_IP>`. The manager's public VPN
-endpoint is `<MANAGER_PUBLIC_IP>:<VPN_UDP_PORT>`. Configure the corresponding peer public keys and
-routes before joining. Use the PC's VPN address for both Swarm's advertised address and data path.
-
-After creating the VM, read its public key from the same Vagrant directory in Windows PowerShell:
-
-```powershell
-vagrant ssh -c "sudo cat /etc/wireguard/pc-swarm.pub"
-```
-
-Register this public key on the manager as a WireGuard peer with the PC's VPN address as its allowed
-address. Preserve the manager's existing peers and make the additional peer configuration persistent.
-Vagrant installs the [VPN configuration script](configure-vpn.sh) as `configure-swarm-vpn` in the guest.
-Configure its manager peer from Windows PowerShell, replacing all placeholders:
-
-```powershell
-vagrant ssh -c "sudo configure-swarm-vpn '<MANAGER_PUBLIC_KEY>' '<MANAGER_PUBLIC_IP>:<VPN_UDP_PORT>' '<PC_VPN_IP>/32' '<VPN_CIDR>'"
-```
-
-The script enables `ci-swarm-wg0` with `PersistentKeepalive=25` so the guest can
-maintain its connection through NAT. It accepts an identical configuration on subsequent runs and
-rejects changes to an existing configuration. Drain the node and stop the VPN before deliberately
-replacing that configuration. Configuring the VPN does not join Swarm.
-Check that the manager responds and that WireGuard reports a recent handshake before joining:
-
-```powershell
-vagrant ssh -c "sudo wg show ci-swarm-wg0 latest-handshakes; ping -c 3 <MANAGER_VPN_IP>"
-```
-
-Swarm uses these ports within the private network:
-
-- TCP port 2377 for management.
-- TCP and UDP port 7946 for node communication.
-- UDP port 4789 for overlay traffic.
-
-Keep overlay traffic within the private network. See
-[Docker's networking requirements](https://docs.docker.com/engine/swarm/swarm-tutorial/#open-protocols-and-ports-between-the-hosts).
-
-Label the node `ci_optional=true`. Leave database role and zone labels unset. The
-`actions-runner-optional` service runs globally, with one launcher on each active Linux x86-64 node
-carrying this label. Each launcher reserves four CPUs and `8G` of memory. The job worker and its
-private Docker daemon each have limits of two CPUs and `4g` of memory.
-
-The worker registers with `swarm,ubuntu-22,docker-isolated,personal-pc` labels. Ubuntu 22 describes the
-runner container image; Ubuntu 24.04 describes its VM host. Existing workflows matching these labels
-can use the PC, including deployment workflows.
-
-The permanent runner service and otherwise unrestricted application services exclude
-`node.labels.ci_optional == true` through the constraint `node.labels.ci_optional != true`.
-Other database services already require labels or hostnames that this PC does not have.
-Audit every live service before activating the node, including services deployed from other
-repositories. Add the exclusion wherever an existing constraint would still allow this PC. A node
-label alone does not stop an unrestricted service from using the node.
-
-## Drained Rollout
-
-1. Create the VM with Vagrant and confirm that its Docker daemon and VPN work.
-2. Obtain a worker join token from the manager. Join with `--availability drain`, the PC's VPN address
-   for `--advertise-addr` and `--data-path-addr`, and the manager's VPN address as the destination.
-3. Confirm that Swarm reports the new node as a worker with `Ready` status and `Drain` availability.
-   Add the `ci_optional=true` node label from the manager.
-4. Apply and verify the placement exclusions on every live service. Deploy the runner stack with
-   registry authentication so the new node can pull its private image and receive the existing runner
-   registration secret. Keep the new node drained until these checks pass.
-5. Activate the node. Confirm that only the optional runner launcher is scheduled there and that its
-   worker registers in GitHub. Run a validation job and confirm that the next job receives a fresh
-   worker and private Docker daemon.
-
-The existing Ansible Swarm playbook joins additional nodes as managers. It must be adapted before
-using it for this optional worker. Swarm's drained state prevents new service tasks; it does not stop
-standalone containers created with `docker run`. See
-[Docker's drain behavior](https://docs.docker.com/engine/swarm/swarm-tutorial/drain-node/).
-
-## Manual Start and Stop
-
-Keep the files in this directory together in your Windows copy. On this PC, use
-`C:\Users\kyryl\Vagrant\SwarmWorker` as the Vagrant project directory. From elevated Windows
-PowerShell, open that directory and start the VM:
-
-```powershell
-Set-Location 'C:\Users\kyryl\Vagrant\SwarmWorker'
-vagrant up --provider=hyperv
-```
-
-Use `vagrant ssh` to open the guest shell. Docker starts through systemd after bootstrap. Confirm the
-VPN is connected before making the node active from the Swarm manager:
+From the repository root:
 
 ```bash
-docker node update --availability active pc-swarm-worker
+cd gh-actions-runner/pc-worker
+cp worker.example.yml worker.local.yml
 ```
 
-For planned shutdown, pause scheduling from the manager and let the current runner finish its job:
+Edit `worker.local.yml` with the worker's unused VPN address, VPN subnet, manager public
+key, and public VPN endpoint. These are public connection settings; private keys and
+Swarm join tokens do not belong in this file. The file is ignored by Git.
+
+```bash
+./vagrant-wsl validate
+./vagrant-wsl up
+```
+
+The launcher selects Linux Vagrant and the Hyper-V provider, enables Windows access,
+and supplies the Windows executable paths. It also checks for a conflicting WSL route
+to the VM network before starting or connecting to the VM.
+
+The VM uses six virtual CPUs and `12 GiB` of memory, leaving room beyond the job's
+container limits. The community-maintained `gusztavvargadr/ubuntu-server-2404-lts` box
+is pinned to `2607.0.0` for Hyper-V on AMD64. Shared host folders are disabled.
+
+The normal Ansible provisioner runs on the WSL host. It installs Docker through the
+same tasks used by the existing Swarm playbook and configures WireGuard through the
+existing pinned role. Vagrant installs that role from `ansible/requirements.yml`.
+Its generated inventory contains only this VM and does not load the production
+inventory or vault. Provisioning neither joins Swarm nor assigns database labels.
+
+Ansible prints the worker's public key after provisioning. Retrieve it again with:
+
+```bash
+./vagrant-wsl ssh -c 'sudo wg show ci-swarm-wg0 public-key'
+```
+
+Register that public key on the manager with the worker's VPN address as its allowed
+address. Preserve the existing peers and persist the addition. Then verify a recent
+handshake and manager reachability, replacing the address placeholder:
+
+```bash
+./vagrant-wsl ssh -c 'sudo wg show ci-swarm-wg0 latest-handshakes; ping -c 3 <MANAGER_VPN_IP>'
+```
+
+## Windows Storage and Linux Keys
+
+Hyper-V needs VM files on a Windows drive. The launcher defaults to:
+
+- Windows Vagrant cache: `<Windows profile>/.vagrant.d`.
+- VM state: `<Windows profile>/Vagrant/SwarmWorker/.vagrant`.
+- Ansible SSH key: `~/.local/share/swarm-pc-worker/ssh/private_key` inside Linux.
+
+The first two locations can be overridden with `VAGRANT_HOME` and `VAGRANT_DOTFILE_PATH`;
+use WSL paths such as `/mnt/c/Users/...`. The SSH location can be overridden with
+`PC_WORKER_SSH_KEY_PATH` and must remain on the Linux filesystem. Reuse the same state
+location for every lifecycle command so Vagrant continues managing the same VM.
+
+The launcher refreshes the Linux SSH key copy for existing VMs; the Ansible adapter
+also copies the newly generated key during first provisioning. They set directory
+permissions to `0700` and key permissions to `0600`.
+This lets Linux OpenSSH use the key when Windows storage does not enforce Linux modes.
+The adapter handles host authentication only; guest provisioning stays in Ansible.
+
+## Network Conflicts
+
+The launcher stops before VM startup if a Docker bridge or inactive route intercepts
+traffic for the Hyper-V Default Switch. It reports the subnet, interface, and current
+route without changing networking. Fix the conflicting subnet or route before retrying.
+
+On this PC, the observed Default Switch subnet was `172.18.240.0/20`; WSL routed it to a
+Docker bridge covering `172.18.0.0/16`. In WSL NAT mode, a route through the current Windows
+gateway can resolve that overlap. Recheck the subnet and gateway after a Windows or WSL
+restart, and replace both placeholders before using this command:
+
+```bash
+ip route show default
+sudo ip route replace <CURRENT_HYPERV_SUBNET> via <CURRENT_WINDOWS_GATEWAY> dev <WSL_INTERFACE>
+```
+
+This route is temporary. Verify guest SSH after correcting it. Changing WSL-wide mounts,
+Docker networks, or Windows switches is not part of provisioning.
+
+## Join and Activate
+
+Use the fixed WireGuard address for Swarm's advertised address and data path. Keep TCP
+2377, TCP/UDP 7946, and UDP 4789 reachable over the private network. Keep overlay traffic
+off public interfaces. See [Docker's network requirements](https://docs.docker.com/engine/swarm/swarm-tutorial/#open-protocols-and-ports-between-the-hosts).
+
+1. Obtain a worker join token from the manager. Inside the guest, join with
+   `--availability drain`, the worker VPN address for both `--advertise-addr` and
+   `--data-path-addr`, and the manager VPN address as the destination.
+2. Confirm that Swarm reports `pc-swarm-worker` as a ready worker with drained availability.
+   Add the `ci_optional=true` node label from the manager. Leave database role and zone labels unset.
+3. Apply and verify placement exclusions on every live service, including services deployed
+   from other repositories. A node label alone does not exclude unrestricted services.
+4. Deploy the runner stack with registry authentication, then activate the node. Confirm
+   that only its optional launcher runs there and that a validation job receives a fresh
+   worker and private Docker daemon.
+
+The optional service runs one launcher on each active Linux x86-64 node labeled
+`ci_optional=true`. It reserves four CPUs and `8G` of memory. The job worker and private
+Docker daemon each have limits of two CPUs and `4g`. The permanent pool and otherwise
+unrestricted application services exclude these nodes.
+
+Runner labels are `swarm,ubuntu-22,docker-isolated,personal-pc`. Ubuntu 22 describes the
+runner image; Ubuntu 24.04 describes the VM host. Existing matching workflows can use
+this slot. The original Ansible Swarm playbook still joins managers and must not be used
+for this worker.
+
+## Pause, Stop, and Reprovision
+
+On the manager, pause scheduling and let the existing runner finish:
 
 ```bash
 docker node update --availability pause pc-swarm-worker
 ```
 
-An existing idle runner can still accept a job while the node is paused. Pause prevents a replacement
-launcher from starting after that runner exits. Wait until its worker and private Docker daemon have
-been removed, then drain the node from the manager:
+An idle registered runner can still accept one job while paused, but Swarm will not
+start its replacement. After the worker and private daemon are removed, drain the node:
 
 ```bash
 docker node update --availability drain pc-swarm-worker
 ```
 
-If an idle runner is still waiting for work, draining stops it. Draining during a job interrupts that job.
-Finally, shut down the VM from the same Vagrant directory in Windows PowerShell:
+Draining a busy launcher interrupts its job. To stop the VM, run in WSL:
 
-```powershell
-vagrant halt
+```bash
+./vagrant-wsl halt
 ```
 
-Start the VM again with `vagrant up --provider=hyperv`, verify its VPN, and activate its Swarm node when
-offering its capacity. No Windows task starts the VM automatically. Sleeping, restarting Windows, or
-stopping the VM during a job can cause that job to fail.
+For an intentional configuration change, finish and drain jobs first, edit
+`worker.local.yml`, then run `./vagrant-wsl provision`. Ansible preserves existing Docker
+configuration and the VPN private key. Changed VPN settings can restart its interface.
+Use at most `-vv` for Ansible diagnostics; the playbook rejects higher verbosity because
+the upstream WireGuard role can reveal private keys at those levels.
+
+Restart with `./vagrant-wsl up`, verify the VPN, and activate the node from the manager
+when offering its capacity. Ordinary startup after initial creation does not rerun
+provisioning. The VM does not start automatically with Windows. Sleeping or shutting down
+the PC during a job can make that job fail.

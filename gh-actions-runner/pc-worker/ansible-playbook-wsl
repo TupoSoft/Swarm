@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+"""Give Linux Ansible a private copy of Vagrant's Windows-stored SSH key."""
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+from ssh_key import copy_vagrant_key
+
+
+def main():
+    command = shutil.which("ansible-playbook")
+    if not command or Path(command).resolve() == Path(__file__).resolve():
+        raise ValueError("Install ansible-playbook in WSL and put it on PATH.")
+    command = os.path.abspath(command)
+    if sys.argv[1:] == ["--version"]:
+        os.execv(command, [command, "--version"])
+    target = copy_vagrant_key(os.environ)
+    extra_vars = json.dumps({"ansible_ssh_private_key_file": str(target)})
+    os.execv(command, [command, *sys.argv[1:], "--extra-vars", extra_vars])
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        sys.exit(f"WSL Ansible adapter: {error}")

@@ -6,11 +6,19 @@ on:
       - master
     paths:
       - gh-actions-runner/**
+      - ansible/playbooks/pc-worker.yml
+      - ansible/tasks/**
+      - ansible/tests/**
+      - ansible/requirements.yml
       - .github/workflows/build-push.yml
       - .github/workflows/deploy-gh-actions-runner.yml
   pull_request:
     paths:
       - gh-actions-runner/**
+      - ansible/playbooks/pc-worker.yml
+      - ansible/tasks/**
+      - ansible/tests/**
+      - ansible/requirements.yml
       - .github/workflows/build-push.yml
       - .github/workflows/deploy-gh-actions-runner.yml
   workflow_dispatch:
@@ -46,6 +54,15 @@ jobs:
             docker run --rm -i --workdir /workspace \
             python:3.12-slim-bookworm sh -c \
             'tar -xf -; python3 -m unittest discover -s gh-actions-runner/tests -v'
+
+      - name: Test worker Ansible validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -cf - ansible | \
+            docker run --rm -i --workdir /workspace \
+            python:3.12-slim-bookworm sh -ec \
+            'tar -xf -; pip install --disable-pip-version-check -q -r ansible/tests/requirements.txt; python3 -m unittest discover -s ansible/tests -v'
 
       - name: Log in to the container registry
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'

@@ -1,0 +1,229 @@
+#!/usr/bin/env python3
+"""Run Linux Vagrant against Windows Hyper-V from WSL."""
+
+import ipaddress
+import json
+import os
+from pathlib import Path
+import platform
+import re
+import shutil
+import subprocess
+import sys
+
+from ssh_key import copy_vagrant_key
+
+
+WINDOWS_PATHS = (
+    "/mnt/c/Windows/System32",
+    "/mnt/c/Windows/System32/WindowsPowerShell/v1.0",
+    "/mnt/c/Program Files/Vagrant/bin",
+)
+NETWORK_COMMANDS = {"up", "reload", "resume", "provision", "ssh"}
+
+
+class LauncherError(Exception):
+    pass
+
+
+def output(command, env):
+    try:
+        result = subprocess.run(
+            command,
+            env=env,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        details = getattr(error, "stderr", None) or str(error)
+        raise LauncherError(f"Cannot run {command[0]}: {details.strip()}") from error
+    return result.stdout.strip().lstrip("\ufeff")
+
+
+def powershell(script, env):
+    return output(
+        [
+            "powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
+            "$ErrorActionPreference = 'Stop'; "
+            "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); "
+            + script,
+        ],
+        env,
+    )
+
+
+def windows_drive_path(value):
+    return re.match(r"^[A-Za-z]:[\\/]", value) is not None
+
+
+def windows_storage_path(name, value, env):
+    path = str(Path(value).expanduser().resolve())
+    converted = output(["wslpath", "-w", path], env)
+    if not windows_drive_path(converted):
+        raise LauncherError(
+            f"{name} must be on a Windows drive such as /mnt/c, because Hyper-V "
+            f"stores VM disks there. {path} maps to {converted!r}."
+        )
+    return path
+
+
+def prepare_environment(source):
+    env = dict(source)
+    if env.get("VAGRANT_DEFAULT_PROVIDER", "hyperv") != "hyperv":
+        raise LauncherError("This WSL setup supports the Hyper-V provider only (hyperv).")
+    env["PATH"] = os.pathsep.join([env.get("PATH", ""), *WINDOWS_PATHS])
+    env["VAGRANT_WSL_ENABLE_WINDOWS_ACCESS"] = "1"
+    env["VAGRANT_PREFERRED_POWERSHELL"] = "powershell"
+    env.setdefault("VAGRANT_DEFAULT_PROVIDER", "hyperv")
+
+    if not env.get("VAGRANT_HOME") or not env.get("VAGRANT_DOTFILE_PATH"):
+        profile = powershell("$env:USERPROFILE", env)
+        if not windows_drive_path(profile):
+            raise LauncherError(f"Windows USERPROFILE is not a drive path: {profile!r}")
+        profile = Path(output(["wslpath", "-u", profile], env))
+        env.setdefault("VAGRANT_HOME", str(profile / ".vagrant.d"))
+        env.setdefault(
+            "VAGRANT_DOTFILE_PATH", str(profile / "Vagrant" / "SwarmWorker" / ".vagrant")
+        )
+
+    for name in ("VAGRANT_HOME", "VAGRANT_DOTFILE_PATH"):
+        if not env.get(name):
+            raise LauncherError(f"{name} cannot be empty.")
+        env[name] = windows_storage_path(name, env[name], env)
+    env.setdefault(
+        "PC_WORKER_SSH_KEY_PATH",
+        str(Path.home() / ".local" / "share" / "swarm-pc-worker" / "ssh" / "private_key"),
+    )
+    return env
+
+
+def linux_vagrant(env, search_path=None):
+    executable = shutil.which("vagrant", path=search_path if search_path is not None else env.get("PATH"))
+    if not executable:
+        raise LauncherError("Install Linux Vagrant 2.4.9 or newer inside WSL.")
+    executable = str(Path(executable).resolve())
+    if executable.lower().endswith(".exe") or windows_drive_path(
+        output(["wslpath", "-w", executable], env)
+    ):
+        raise LauncherError(
+            "The selected vagrant is on Windows. Install Linux Vagrant inside WSL "
+            "and put its executable first in PATH."
+        )
+    version = output([executable, "--version"], env)
+    match = re.search(r"Vagrant (\d+)\.(\d+)\.(\d+)", version)
+    if not match or tuple(map(int, match.groups())) < (2, 4, 9):
+        raise LauncherError(f"Linux Vagrant 2.4.9 or newer is required; found {version!r}.")
+    return executable
+
+
+def prepare_ssh_key(env):
+    env.pop("PC_WORKER_VAGRANT_SSH_KEY", None)
+    generated_key = Path(env["VAGRANT_DOTFILE_PATH"]) / "machines/default/hyperv/private_key"
+    if generated_key.is_file():
+        try:
+            env["PC_WORKER_VAGRANT_SSH_KEY"] = str(copy_vagrant_key(env))
+        except (ValueError, OSError, subprocess.CalledProcessError) as error:
+            raise LauncherError(f"Cannot prepare the Vagrant SSH key: {error}") from error
+
+
+def json_output(command, env):
+    try:
+        return json.loads(output(command, env))
+    except ValueError as error:
+        raise LauncherError(f"Cannot parse the network information from {command[0]}.") from error
+
+
+def check_network(env):
+    try:
+        addresses = json.loads(powershell(
+            "@(Get-NetIPAddress -InterfaceAlias 'vEthernet (Default Switch)' "
+            "-AddressFamily IPv4 | Select-Object IPAddress, PrefixLength) "
+            "| ConvertTo-Json -Compress",
+            env,
+        ))
+    except ValueError as error:
+        raise LauncherError("Cannot read the Hyper-V Default Switch IPv4 subnet.") from error
+    if isinstance(addresses, dict):
+        addresses = [addresses]
+    if not addresses:
+        raise LauncherError("The Hyper-V Default Switch has no IPv4 address.")
+
+    defaults = json_output(["ip", "-j", "route", "show", "default"], env)
+    default_devices = {route.get("dev") for route in defaults}
+    for address in addresses:
+        try:
+            host = str(ipaddress.IPv4Address(address["IPAddress"]))
+            subnet = ipaddress.ip_network((host, int(address["PrefixLength"])), strict=False)
+        except (KeyError, TypeError, ValueError) as error:
+            raise LauncherError("The Hyper-V Default Switch returned an invalid IPv4 subnet.") from error
+        routes = json_output(["ip", "-j", "route", "get", host], env)
+        if not routes:
+            raise LauncherError(f"WSL has no route to the Hyper-V Default Switch at {host}.")
+        route = routes[0]
+        device = route.get("dev", "")
+        docker_route = device.startswith(("br-", "docker"))
+        down_route = "linkdown" in route.get("flags", [])
+        if device and device not in default_devices and not docker_route and not down_route:
+            links = json_output(["ip", "-j", "link", "show", "dev", device], env)
+            down_route = any(link.get("operstate") == "DOWN" for link in links)
+        if docker_route or (down_route and device not in default_devices):
+            raise LauncherError(
+                f"The Hyper-V Default Switch subnet {subnet} overlaps a Linux "
+                f"{'Docker' if docker_route else 'inactive'} route through {device}. "
+                f"WSL would send VM traffic to {device} instead of Windows. "
+                "Resolve the conflicting Docker subnet or WSL route, then retry. "
+                f"Current route: {json.dumps(route, sort_keys=True)}"
+            )
+
+
+def needs_network(arguments):
+    options = arguments[:arguments.index("--")] if "--" in arguments else arguments
+    if any(argument in {"-h", "--help", "-v", "--version"} for argument in options):
+        return False
+    command = next((argument for argument in options if not argument.startswith("-")), "")
+    return command in NETWORK_COMMANDS
+
+
+def check_provider(arguments):
+    for index, argument in enumerate(arguments):
+        if argument == "--":
+            break
+        if argument.startswith("--provider="):
+            provider = argument.split("=", 1)[1]
+        elif argument == "--provider":
+            provider = arguments[index + 1] if index + 1 < len(arguments) else ""
+        else:
+            continue
+        if provider != "hyperv":
+            raise LauncherError("This WSL setup supports the Hyper-V provider only (--provider=hyperv).")
+
+
+def main(arguments=None):
+    arguments = sys.argv[1:] if arguments is None else arguments
+    try:
+        if platform.system() != "Linux" or not (
+            os.environ.get("WSL_DISTRO_NAME") or "microsoft" in platform.release().lower()
+        ):
+            raise LauncherError("This launcher requires WSL on Windows with Hyper-V.")
+        check_provider(arguments)
+        source = dict(os.environ)
+        env = prepare_environment(source)
+        executable = linux_vagrant(env, source.get("PATH", os.defpath))
+        if needs_network(arguments):
+            check_network(env)
+        prepare_ssh_key(env)
+        os.chdir(Path(__file__).resolve().parent)
+        os.execve(executable, [executable, *arguments], env)
+    except LauncherError as error:
+        print(f"vagrant-wsl: {error}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

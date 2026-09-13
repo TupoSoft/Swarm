@@ -1,0 +1,66 @@
+---
+- name: Provision the optional Hyper-V worker
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Restrict provisioning to the dedicated worker guest
+      ansible.builtin.assert:
+        that:
+          - ansible_play_hosts_all | length == 1
+          - ansible_hostname == 'pc-swarm-worker'
+          - ansible_distribution == 'Ubuntu'
+          - ansible_distribution_version == '24.04'
+          - ansible_architecture == 'x86_64'
+          - ansible_verbosity | int < 3
+        fail_msg: This playbook requires one pc-swarm-worker Ubuntu 24.04 AMD64 guest; use at most -vv to keep the WireGuard role's key handling private.
+
+    - name: Verify that the worker runs in Hyper-V
+      ansible.builtin.command: systemd-detect-virt --vm
+      register: pc_worker_virtualization
+      changed_when: false
+      failed_when: pc_worker_virtualization.stdout != 'microsoft'
+
+    - name: Validate the worker VPN settings
+      ansible.builtin.import_tasks: ../tasks/pc-worker-inputs.yml
+
+  tasks:
+    - name: Ensure the Docker configuration directory exists
+      ansible.builtin.file:
+        path: /etc/docker
+        state: directory
+        mode: "0755"
+
+    - name: Set a default Docker log driver while preserving existing configuration
+      ansible.builtin.copy:
+        content: '{"log-driver":"local"}'
+        dest: /etc/docker/daemon.json
+        owner: root
+        group: root
+        mode: "0644"
+        force: false
+
+    - name: Install Docker Engine and dependencies
+      ansible.builtin.import_tasks: ../tasks/docker.yml
+
+    - name: Configure the worker VPN with the existing WireGuard role
+      ansible.builtin.include_role:
+        name: githubixx.ansible_role_wireguard
+        apply:
+          no_log: true
+      vars:
+        wireguard_interface: ci-swarm-wg0
+        wireguard_address: "{{ pc_worker_address }}"
+        wireguard_endpoint: ""
+        wireguard_interface_restart: true
+        wireguard_unmanaged_peers:
+          swarm-manager:
+            public_key: "{{ pc_worker_manager_public_key }}"
+            endpoint: "{{ pc_worker_manager_endpoint }}"
+            allowed_ips: "{{ pc_worker_vpn_cidr }}"
+            persistent_keepalive: 25
+
+    - name: Show the worker public key for registration on the VPN manager
+      ansible.builtin.debug:
+        msg: "Worker WireGuard public key: {{ wireguard__fact_public_key }}"

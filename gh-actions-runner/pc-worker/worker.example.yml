@@ -1,0 +1,8 @@
+---
+# Copy to worker.local.yml and replace these public settings before vagrant up.
+# Use an unused VPN address assigned to this worker, always with a /32 prefix.
+pc_worker_address: "192.0.2.253/32"
+pc_worker_vpn_cidr: "192.0.2.0/24"
+# Obtain this public key with sudo wg show wg0 public-key on the manager.
+pc_worker_manager_public_key: ""
+pc_worker_manager_endpoint: "vpn.example.com:51820"

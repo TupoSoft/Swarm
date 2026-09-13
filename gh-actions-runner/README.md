@@ -18,8 +18,8 @@ selected by the consuming workflow. The Ruby tool cache at `/opt/hostedtoolcache
 
 ## Capacity and Lifecycle
 
-The [optional PC worker guide](pc-worker/README.md) explains how to add a dedicated Hyper-V virtual
-machine with Vagrant as a Swarm worker. Its separate global service adds one job slot per available, opted-in PC.
+The [optional PC worker guide](pc-worker/README.md) explains how to launch a dedicated Hyper-V VM
+from WSL with Vagrant and Ansible. Its global service adds one job slot per available PC.
 
 The stack has two launcher replicas, allowing up to two GitHub Actions jobs to run concurrently.
 Each worker is limited to two CPUs and a memory limit of `4g`, and its Docker daemon has the same limits.

@@ -9,69 +9,8 @@
     swarm_manager_host: "local-manager-1"
 
   tasks:
-    - name: Update apt cache
-      apt:
-        update_cache: true
-        cache_valid_time: 3600
-
-    - name: Install dependencies
-      apt:
-        name:
-          - jq
-          - ca-certificates
-          - curl
-          - gnupg
-        state: present
-
-    - name: Ensure /etc/apt/keyrings exists
-      file:
-        path: /etc/apt/keyrings
-        state: directory
-        mode: "0755"
-
-    - name: Add Docker GPG key
-      get_url:
-        url: https://download.docker.com/linux/ubuntu/gpg
-        dest: /etc/apt/keyrings/docker.asc
-        mode: "0644"
-
-    - name: Add Docker apt repository
-      apt_repository:
-        repo: >-
-          deb [arch={{ ansible_architecture | replace('x86_64','amd64') }}
-          signed-by=/etc/apt/keyrings/docker.asc]
-          https://download.docker.com/linux/ubuntu
-          {{ ansible_distribution_release }} stable
-        state: present
-        filename: docker
-
-    - name: Install Docker Engine
-      apt:
-        update_cache: true
-        name:
-          - docker-ce
-          - docker-ce-cli
-          - containerd.io
-          - docker-buildx-plugin
-          - docker-compose-plugin
-        state: present
-
-    - name: Ensure docker group exists
-      group:
-        name: docker
-        state: present
-
-    - name: Add user to docker group
-      user:
-        name: "{{ ansible_user }}"
-        groups: docker
-        append: true
-
-    - name: Ensure Docker service is running
-      service:
-        name: docker
-        state: started
-        enabled: true
+    - name: Install Docker Engine and dependencies
+      ansible.builtin.import_tasks: ../tasks/docker.yml
 
     - name: Check swarm state (LocalNodeState)
       command: docker info --format '{{ "{{" }} .Swarm.LocalNodeState {{ "}}" }}'
