@@ -7,7 +7,6 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openssh-client \
     curl \
-    git \
     jq \
     gettext-base \
     ca-certificates \
@@ -30,6 +29,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zlib1g \
     tzdata \
     gzip && \
+    rm -rf /var/lib/apt/lists/*
+
+# Ubuntu 22.04's Git cannot emit the NUL-delimited history required by consumers.
+# Use the stable PPA recommended by https://git-scm.com/install/linux.
+RUN install -m 0755 -d /etc/apt/keyrings && \
+    curl --fail --location --retry 3 \
+    'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF911AB184317630C59970973E363C90F8F1B6217' \
+    -o /etc/apt/keyrings/git-core.asc && \
+    chmod a+r /etc/apt/keyrings/git-core.asc && \
+    echo 'deb [signed-by=/etc/apt/keyrings/git-core.asc] https://ppa.launchpadcontent.net/git-core/ppa/ubuntu jammy main' \
+    > /etc/apt/sources.list.d/git-core.list && \
+    apt-get update && apt-get install -y --no-install-recommends git && \
+    dpkg --compare-versions "$(git --version | cut -d ' ' -f 3)" ge 2.50.0 && \
     rm -rf /var/lib/apt/lists/*
 
 # Add Docker's GPG key and configure Docker repository
@@ -55,6 +67,11 @@ RUN useradd -m runner && \
     chown -R runner:runner /actions-runner /opt/hostedtoolcache && \
     printf 'runner ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/runner && \
     chmod 0440 /etc/sudoers.d/runner
+
+# Exercise the real Git binary as the job user before the image can be published.
+COPY gh-actions-runner/tests/check_git_capabilities.py /tmp/check_git_capabilities.py
+RUN runuser -u runner -- python3 /tmp/check_git_capabilities.py && \
+    rm /tmp/check_git_capabilities.py
 
 ENV RUNNER_TOOL_CACHE=/opt/hostedtoolcache
 

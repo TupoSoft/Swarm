@@ -16,6 +16,13 @@ The image contains Actions runner `2.337.0`, Ubuntu 22.04, Docker CLI and Compos
 and passwordless `sudo` inside the worker for browser dependencies. Node and Ruby versions remain
 selected by the consuming workflow. The Ruby tool cache at `/opt/hostedtoolcache` is writable.
 
+Git comes from the stable Ubuntu Git Maintainers package archive recommended by the
+[Git installation documentation](https://git-scm.com/install/linux). The image requires Git 2.50 or newer
+because LeadEmailFinder's history scanner uses `git rev-list --objects --all -z` output delimited by null bytes.
+The image build checks the version and tests reading a deleted file from Git history as the `runner` user.
+The default Git 2.34 package in Ubuntu 22.04 silently produces incompatible output and causes that scanner to miss files.
+The package archive supplies stable updates; rebuild with `--no-cache` to refresh the installed Git package.
+
 ## Capacity and Lifecycle
 
 The stack has two launcher replicas, allowing up to two GitHub Actions jobs to run concurrently.
@@ -116,6 +123,8 @@ actionlint .github/workflows/*.yml
 ```
 
 The lifecycle tests use fake Docker and GitHub clients; they do not register runners or change Swarm.
+The Docker build runs `gh-actions-runner/tests/check_git_capabilities.py` against the installed Git binary.
+That check runs inside the new image so an older bootstrap runner can still build its replacement.
 Container image checks and a local private-daemon smoke test provide separate evidence. Live GitHub
 scheduling and full LeadEmailFinder validation require the deployed pool and are not proved by static
 checks or mocked tests.
