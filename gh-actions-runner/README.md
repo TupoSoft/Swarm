@@ -13,8 +13,9 @@ fixed development stack name and database ports to work without touching another
 The `docker-isolated` label is assigned only to these workers. Consumers select
 `[self-hosted, swarm, ubuntu-22, docker-isolated]`; the launcher itself never registers as a runner.
 The image contains Actions runner `2.337.0`, Ubuntu 22.04, Docker CLI and Compose, build tools, Python,
-and passwordless `sudo` inside the worker for browser dependencies. Node and Ruby versions remain
-selected by the consuming workflow. The Ruby tool cache at `/opt/hostedtoolcache` is writable.
+Node 24, npm, and passwordless `sudo` inside the worker for browser dependencies. Workflows can select other
+Node versions with `actions/setup-node` and continue selecting their Ruby version. The Ruby tool cache at
+`/opt/hostedtoolcache` is writable.
 
 Git comes from the stable Ubuntu Git Maintainers package archive recommended by the
 [Git installation documentation](https://git-scm.com/install/linux). The image requires Git 2.50 or newer
@@ -22,6 +23,32 @@ because LeadEmailFinder's history scanner uses `git rev-list --objects --all -z`
 The image build checks the version and tests reading a deleted file from Git history as the `runner` user.
 The default Git 2.34 package in Ubuntu 22.04 silently produces incompatible output and causes that scanner to miss files.
 The package archive supplies stable updates; rebuild with `--no-cache` to refresh the installed Git package.
+
+## Chromium Runtime
+
+The image includes Chromium, its headless shell, FFmpeg, and Linux libraries selected by Playwright `1.63.0`.
+`PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright` points every worker to these installed browsers. This directory
+is writable by `runner` and lies outside the workspace mount. Each worker receives its own disposable copy
+of any changes, so additional browser installations do not affect another job.
+
+The build copies Node and npm from the official `node:24-bookworm-slim` image into the Ubuntu runner.
+The POSIX shell script `install-chromium.sh` installs `playwright@1.63.0` globally with npm, then runs
+`playwright install --with-deps chromium`. npm handles package download and integrity verification.
+Node, npm, `npx`, and the global Playwright CLI remain available on `PATH` in the final image.
+
+Separate build steps check browser reuse and launch both Chromium modes as `runner` without network access.
+The browser check verifies the installed Playwright version, renders local HTML, and captures screenshots in
+memory. Consuming workflows still install their own Playwright package from their lockfile.
+
+Keep the existing `playwright install --with-deps chromium` command. Matching versions reuse installed browser
+assets, while other versions can install their required browsers. The command still checks Linux packages and
+may update package indexes. Preinstallation does not remove that work or establish a total browser-job duration.
+
+When the consumer's frozen lockfile changes Playwright versions, update `PLAYWRIGHT_VERSION` in the Dockerfile
+and run the image build plus the fresh-container checks in the
+[Chromium runtime plan](../docs/plans/browser-ci/01-preinstall-chromium.md). The CLI selects browser revisions;
+do not update browser directory names by hand. After deployment, compare setup logs and elapsed time separately
+from test execution and runner queue time.
 
 ## Capacity and Lifecycle
 
