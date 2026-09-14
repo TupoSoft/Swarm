@@ -92,39 +92,16 @@ ARG PLAYWRIGHT_INTEGRITY=sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fv
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
 
 # Use the consumer's exact installer and verify its archive before executing it.
-RUN curl --fail --location --retry 3 \
-    "https://registry.npmjs.org/playwright-core/-/playwright-core-${PLAYWRIGHT_VERSION}.tgz" \
-    -o /tmp/runner-playwright.tgz && \
-    /actions-runner/externals/node24/bin/node -e ' \
-      const fs = require("node:fs"); \
-      const digest = require("node:crypto").createHash("sha512") \
-        .update(fs.readFileSync("/tmp/runner-playwright.tgz")).digest("base64"); \
-      require("node:assert/strict").equal("sha512-" + digest, process.env.PLAYWRIGHT_INTEGRITY); \
-    ' && \
-    mkdir /tmp/runner-playwright && \
-    tar xzf /tmp/runner-playwright.tgz --strip-components=1 -C /tmp/runner-playwright && \
-    /actions-runner/externals/node24/bin/node -e ' \
-      const fs = require("node:fs"); \
-      const version = require("/tmp/runner-playwright/package.json").version; \
-      require("node:assert/strict").equal(version, process.env.PLAYWRIGHT_VERSION); \
-      fs.writeFileSync("/opt/runner-playwright.json", JSON.stringify({ \
-        version, integrity: process.env.PLAYWRIGHT_INTEGRITY, \
-        browserPath: process.env.PLAYWRIGHT_BROWSERS_PATH, \
-        browsers: require("/tmp/runner-playwright/browsers.json").browsers \
-      }, null, 2) + "\n"); \
-    ' && \
-    /actions-runner/externals/node24/bin/node /tmp/runner-playwright/cli.js install --with-deps chromium && \
-    chown -R runner:runner /opt/ms-playwright && \
-    rm /tmp/runner-playwright.tgz && \
-    rm -rf /var/lib/apt/lists/*
+COPY gh-actions-runner/install-chromium.cjs /tmp/install-chromium.cjs
+RUN /actions-runner/externals/node24/bin/node /tmp/install-chromium.cjs
 
 # An offline check as the job user proves browser reuse and launch before publishing.
 COPY gh-actions-runner/tests/check_browser_capabilities.cjs /tmp/check_browser_capabilities.cjs
 RUN --network=none runuser -u runner -- \
-    /actions-runner/externals/node24/bin/node /tmp/runner-playwright/cli.js install chromium && \
-    runuser -u runner -- /actions-runner/externals/node24/bin/node \
-    /tmp/check_browser_capabilities.cjs /tmp/runner-playwright && \
-    rm -rf /tmp/runner-playwright /tmp/check_browser_capabilities.cjs
+    /actions-runner/externals/node24/bin/node /tmp/runner-playwright/cli.js install chromium
+RUN --network=none runuser -u runner -- /actions-runner/externals/node24/bin/node \
+    /tmp/check_browser_capabilities.cjs /tmp/runner-playwright
+RUN rm -rf /tmp/runner-playwright /tmp/check_browser_capabilities.cjs /tmp/install-chromium.cjs
 
 # The launcher creates job-owned volumes; workers never inherit its host socket or PAT.
 COPY --chmod=755 gh-actions-runner/entrypoint.sh gh-actions-runner/runner-entrypoint.sh /

@@ -19,6 +19,9 @@ The change does not establish that the entire browser workflow fits its current 
 - [x] (2026-09-14) Bake Chromium and its system libraries into the existing worker image.
 - [x] (2026-09-14) Add checks for installation reuse, browser launch, permissions, and fresh worker state.
 - [x] (2026-09-14) Run local validation and document the image publication and operational verification procedure.
+- [x] (2026-09-14) Move provisioning into `install-chromium.cjs`, separate the offline Docker build steps, and
+  repeat focused validation for the requested readability refactor. The completed checks above describe the
+  implementation at commit `f8d4282` before this refactor.
 
 ## Plan dependencies
 
@@ -26,8 +29,9 @@ None.
 
 ## Surprises & Discoveries
 
-- (2026-09-14) Two fresh final-image containers reused and launched both browser modes offline. The existing
-  installer flags completed in 9.10 seconds locally with zero browser downloads and zero newly installed packages;
+- (2026-09-14, before the readability refactor) Two fresh final-image containers reused and launched both browser
+  modes offline. The existing installer flags completed in 9.10 seconds locally with zero browser downloads and
+  zero newly installed packages;
   package index retrieval remained. This is local evidence, not a deployed CI timing improvement.
 - (2026-09-14) Harper dependencies are absent from this task directory. The repository lint command ran from
   the main LeadEmailFinder directory against both absolute paths in this Swarm worktree.
@@ -60,6 +64,12 @@ None.
   Rationale: Matching versions reuse the installed binaries, while different locked versions retain the existing
   installation behavior. Deployment needs no coordinated consumer change or new scheduling label.
   Date/Author: 2026-09-13, Codex planning.
+- Decision: Move browser provisioning into `gh-actions-runner/install-chromium.cjs` and give offline reuse and
+  browser launch their own short Dockerfile instructions.
+  Rationale: Ordinary JavaScript keeps archive verification and metadata generation readable and supports
+  direct syntax checks. Separate build steps make each validation gate visible. This refactor preserves the
+  installer version, integrity, environment, paths, package metadata, and runtime behavior.
+  Date/Author: 2026-09-14, Codex implementation following the user's readability request.
 
 ## Outcomes & Retrospective
 
@@ -67,9 +77,11 @@ Implemented in the existing draft PR #76. The image installs the verified Playwr
 and Linux libraries, exposes the browser path to workers, and checks installation reuse and both launch modes
 offline as `runner`. The final image retains diagnostic metadata and removes the temporary installer.
 
-The image build, 20 existing lifecycle and deployment tests, two fresh-container checks, four rejection checks,
-and the existing installation flags passed locally. Both Markdown files passed Harper. An independent code
-review found no actionable issues. The consuming workflow and runner resource settings remain unchanged.
+Before the readability refactor, at commit `f8d4282`, the image build, 20 existing lifecycle and deployment tests,
+two fresh-container checks, four rejection checks, and the existing installation flags passed locally. Both
+Markdown files passed Harper. The readability refactor also passed the image build, all 20 existing tests,
+two fresh-container checks, an invalid-integrity build, and the existing installation flags. Independent review
+found no actionable issues. The consuming workflow and runner resource settings remain unchanged.
 
 The PR image build must pass before image publication. Image publication, deployment, and a measured setup-time
 improvement on the Swarm pool remain separate operational work; none is claimed by these local results.
@@ -100,8 +112,9 @@ variable in its [browser installation guidance](https://playwright.dev/docs/brow
 
 ## Scope and Non-Goals
 
-Change `gh-actions-runner/Dockerfile`, add `gh-actions-runner/tests/check_browser_capabilities.cjs`, and update
-`gh-actions-runner/README.md`. Keep this ExecPlan current and link it from the runner documentation.
+Change `gh-actions-runner/Dockerfile`, add `gh-actions-runner/install-chromium.cjs` and
+`gh-actions-runner/tests/check_browser_capabilities.cjs`, and update `gh-actions-runner/README.md`.
+Keep this ExecPlan current and link it from the runner documentation.
 The image build itself runs the new smoke check, so the existing pull request build gates its behavior.
 
 Leave the launcher, worker entry point, stack resource settings, credentials, registry permissions, image tag,
@@ -115,8 +128,10 @@ The plan authorizes no infrastructure deployment. It changes no application HTTP
 
 Add the browser provisioning layer after the existing Actions runner archive has been verified and extracted in
 `gh-actions-runner/Dockerfile`. Declare build arguments for installer version `1.63.0` and the exact SHA-512
-integrity shown under Artifacts and Notes. Download that exact `playwright-core` package archive from the npm
-registry, verify its bytes before extraction, and fail the image build on a version or integrity mismatch.
+integrity shown under Artifacts and Notes. Copy `gh-actions-runner/install-chromium.cjs` into the image and run it
+with the runner's bundled Node in one short Dockerfile instruction. The script downloads that exact
+`playwright-core` package archive from the npm registry, verifies its bytes before extraction, and fails the
+image build on a version or integrity mismatch. It also writes the diagnostic metadata and installs Chromium.
 Keep the installer in a temporary directory. Run its CLI with
 `/actions-runner/externals/node24/bin/node` and `install --with-deps chromium` as root, setting
 `PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright` for installation and all later worker processes.
@@ -138,9 +153,11 @@ the browser path is writable by the current non-root user, and launches both the
 the `chromium` channel. Each launch loads a local HTML document, checks its title, captures an in-memory
 screenshot, and closes the browser in a `finally` block. It writes no test artifact containing application data.
 
-Run that checker as `runner` in a Dockerfile `RUN --network=none` instruction after browser installation and
-before removing the temporary package. The check must fail the image build for missing libraries, missing
-binaries, wrong version metadata, or inaccessible browser files. Use the existing image build workflow to run it
+After browser installation, use separate short `RUN --network=none` instructions to run the installer with
+`install chromium` and then the browser checker. Both instructions use `runuser` to execute as `runner`.
+Remove the temporary package and copied scripts in a separate cleanup instruction after those checks.
+The checks must fail the image build for missing libraries, missing binaries, wrong version metadata, or
+inaccessible browser files. Use the existing image build workflow to run it
 for pull requests and before publication. Do not add credential access or change bootstrap runner labels.
 
 Document how to update both installer version and integrity when the consumer lockfile changes. Existing jobs
@@ -184,6 +201,8 @@ private daemon, and cleanup mechanism remain unchanged.
 From the Swarm repository root, run the existing focused checks and build the image:
 
 ```sh
+node --check gh-actions-runner/install-chromium.cjs
+node --check gh-actions-runner/tests/check_browser_capabilities.cjs
 python3 -m unittest discover -s gh-actions-runner/tests -v
 bash -n gh-actions-runner/entrypoint.sh gh-actions-runner/runner-entrypoint.sh
 docker stack config -c gh-actions-runner/gh-actions-runner.yml
@@ -251,7 +270,7 @@ temporary service rollback alone is insufficient if tracked source still selects
 
 ## Artifacts and Notes
 
-Local implementation validation on 2026-09-14:
+Historical local implementation validation on 2026-09-14 at commit `f8d4282`, before the readability refactor:
 
 - `python3 -m unittest discover -s gh-actions-runner/tests -v`: all 20 tests passed.
 - The documented shell syntax, stack rendering, and whitespace checks passed. Node syntax validation passed.
@@ -264,6 +283,17 @@ Local implementation validation on 2026-09-14:
   and missing browser executables. Each reported the correct error message.
 - The documented Harper command passed for both Markdown files from `/home/kyrylo/WebstormProjects/LeadEmailFinder`.
 
+Readability refactor validation on 2026-09-14:
+
+- Node syntax validation passed for `install-chromium.cjs`, and all 20 existing tests passed again.
+- The image build passed with the tag `gh-actions-runner:chromium-readable-20260914`, including both offline gates.
+- A build with `--build-arg PLAYWRIGHT_INTEGRITY=sha512-invalid` failed at archive verification before extraction
+  or installer execution.
+- Two fresh containers passed offline reuse, both launch modes, cleanup, and isolation checks in 1.96 and
+  1.85 seconds. The copied provisioning script was also absent from the final image.
+- The existing installer flags passed in 10.43 seconds locally, with zero browser downloads and no new packages.
+- Independent review found no actionable issues. The documented Harper command passed for both Markdown files.
+
 The current installer archive is
 `https://registry.npmjs.org/playwright-core/-/playwright-core-1.63.0.tgz`, with integrity:
 
@@ -274,8 +304,8 @@ sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fvC/bxgspzkjSfU+MweEMmPM8KJ
 The package registry metadata and archive contents were inspected on 2026-09-13; the integrity matches the
 consumer lockfile. The package CLI is self-contained, and its manifest selects the browser revisions stated above.
 The [Playwright browser documentation](https://playwright.dev/docs/browsers) supports the shared browser path
-and version-specific installation behavior. Compatibility with the final runner image passed the prescribed
-local build and runtime checks. Deployment and CI performance remain unverified.
+and version-specific installation behavior. Both the original implementation and the readability refactor passed
+the focused local build and runtime checks. Deployment and CI performance remain unverified.
 
 Suggested pull request title: `perf(runners): preinstall Chromium for browser validation`.
 The expected final location is `docs/plans/browser-ci/01-preinstall-chromium.md` in Swarm. This plan may proceed
