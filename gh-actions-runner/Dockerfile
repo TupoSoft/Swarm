@@ -1,3 +1,5 @@
+FROM node:24-bookworm-slim AS node-runtime
+
 FROM ubuntu:22.04
 
 # Define arguments
@@ -87,21 +89,25 @@ RUN curl --fail --location --retry 3 -O https://github.com/actions/runner/releas
     rm actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz && \
     chown -R runner:runner /actions-runner
 
+# Supply the standard Node/npm toolchain without changing the runner's Ubuntu base.
+COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
+COPY --from=node-runtime /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
+    ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+
 ARG PLAYWRIGHT_VERSION=1.63.0
-ARG PLAYWRIGHT_INTEGRITY=sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fvC/bxgspzkjSfU+MweEMmPM8KJebG6nnyxo5mCg==
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
 
-# Use the consumer's exact installer and verify its archive before executing it.
+# Install the same Playwright version selected by the consumer's lockfile.
 COPY gh-actions-runner/install-chromium.sh /tmp/install-chromium.sh
 RUN sh /tmp/install-chromium.sh
 
 # An offline check as the job user proves browser reuse and launch before publishing.
 COPY gh-actions-runner/tests/check_browser_capabilities.cjs /tmp/check_browser_capabilities.cjs
-RUN --network=none runuser -u runner -- \
-    /actions-runner/externals/node24/bin/node /tmp/runner-playwright/cli.js install chromium
-RUN --network=none runuser -u runner -- /actions-runner/externals/node24/bin/node \
-    /tmp/check_browser_capabilities.cjs /tmp/runner-playwright
-RUN rm -rf /tmp/runner-playwright /tmp/check_browser_capabilities.cjs /tmp/install-chromium.sh
+RUN --network=none runuser -u runner -- playwright install chromium
+RUN --network=none runuser -u runner -- node /tmp/check_browser_capabilities.cjs \
+    /usr/local/lib/node_modules/playwright "$PLAYWRIGHT_VERSION"
+RUN rm /tmp/check_browser_capabilities.cjs /tmp/install-chromium.sh
 
 # The launcher creates job-owned volumes; workers never inherit its host socket or PAT.
 COPY --chmod=755 gh-actions-runner/entrypoint.sh gh-actions-runner/runner-entrypoint.sh /

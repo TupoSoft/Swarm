@@ -23,7 +23,9 @@ The change does not establish that the entire browser workflow fits its current 
   repeat focused validation for the readability refactor at commit `a5b8a9c`. These are historical JavaScript
   results; the first three progress items describe the initial implementation at commit `f8d4282`.
 - [x] (2026-09-14) Replace the provisioning script with `install-chromium.sh` as requested, validate POSIX shell
-  syntax and failure handling, and repeat the focused image and runtime checks.
+  syntax and failure handling, and repeat the focused image and runtime checks at commit `df33322`.
+- [x] (2026-09-14) Add Node and npm, install pinned Playwright globally, remove custom archive and metadata
+  handling, and validate the simplified installation and retained tools in fresh containers.
 
 ## Plan dependencies
 
@@ -41,7 +43,8 @@ None.
   image filesystem state, not a mounted home volume. An image path outside the workspace survives its mount.
 - (2026-09-13) Stack environment variables do not automatically reach workers. The launcher explicitly passes
   registration and runner settings, so the browser location must be defined with `ENV` in the Dockerfile.
-- (2026-09-13) The image has runner-provided Node executables but does not install a global Node package manager.
+- (2026-09-13, before global installation was authorized) The image had runner-provided Node executables but
+  no global Node package manager.
   `playwright-core@1.63.0` has no runtime package dependencies and supports Node 20 or later. Its checked archive
   can run directly with the runner's bundled Node 24 executable.
 - (2026-09-13) Swarm PR #75 added `gh-actions-runner/tests/check_git_capabilities.py` and runs it during the
@@ -53,11 +56,6 @@ None.
   Rationale: The private daemon, matching workspace mounts, localhost ports, and ephemeral worker lifecycle are
   existing contracts. Browser provisioning does not require changing those contracts or replacing the base image.
   Date/Author: 2026-09-13, Codex planning.
-- Decision: Install with exactly `playwright-core@1.63.0`, whose archive integrity matches LeadEmailFinder's
-  `pnpm-lock.yaml`, using the runner's bundled Node executable.
-  Rationale: This selects the repository's browser revisions without a global package-manager installation,
-  an unversioned CLI download, or a change to the consuming application's dependencies.
-  Date/Author: 2026-09-13, Codex planning.
 - Decision: Use image-level `PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright` and make that directory writable by `runner`.
   Rationale: The path is outside the shared workspace. Each job writes only its own disposable container layer,
   including package links and any different browser version requested by another repository.
@@ -66,35 +64,29 @@ None.
   Rationale: Matching versions reuse the installed binaries, while different locked versions retain the existing
   installation behavior. Deployment needs no coordinated consumer change or new scheduling label.
   Date/Author: 2026-09-13, Codex planning.
-- Decision: Move browser provisioning into `gh-actions-runner/install-chromium.cjs` and give offline reuse and
-  browser launch their own short Dockerfile instructions.
-  Rationale: Ordinary JavaScript keeps archive verification and metadata generation readable and supports
-  direct syntax checks. Separate build steps make each validation gate visible. This refactor preserves the
-  installer version, integrity, environment, paths, package metadata, and runtime behavior.
-  Date/Author: 2026-09-14, Codex implementation following the user's readability request.
 - Decision: Use `gh-actions-runner/install-chromium.sh` with `#!/bin/sh` and `set -eu` for browser provisioning.
-  This supersedes the JavaScript provisioning decision above while preserving the separate offline build steps.
-  Rationale: The user requested POSIX shell. Existing `curl`, `tar`, `openssl`, and `jq` handle download,
-  archive verification, extraction, version checks, and metadata. Sequential commands preserve error handling
-  without pipelines or `pipefail`. Node runs only Playwright's own CLI and the existing browser checker.
+  Rationale: The user requested POSIX shell. Keep installation in this short script and give offline reuse and
+  browser launch their own Dockerfile instructions.
   Date/Author: 2026-09-14, Codex implementation following the user's POSIX shell request.
+- Decision: Copy Node 24 and npm from `node:24-bookworm-slim`, install `playwright@1.63.0` globally with npm,
+  and retain those tools in the final image. npm owns registry downloads and package integrity verification.
+  Rationale: The user authorized npm and global Playwright to simplify installation. This supersedes the earlier
+  exclusions of global Node and Playwright and requirements for custom archive verification and diagnostic metadata.
+  Remove `PLAYWRIGHT_INTEGRITY` and the custom manifest. Keep the pinned Playwright version, browser path,
+  POSIX script, offline checks, and consumer lockfile behavior.
+  Date/Author: 2026-09-14, Codex implementation following the user's global installation request.
 
 ## Outcomes & Retrospective
 
-Implemented in the existing draft PR #76. The image installs the verified Playwright `1.63.0` browser assets
-and Linux libraries, exposes the browser path to workers, and checks installation reuse and both launch modes
-offline as `runner`. The final image retains diagnostic metadata and removes the temporary installer.
+Draft PR #76 now uses npm to install pinned Playwright globally and provision its Chromium assets and Linux
+libraries. The image exposes the browser path to workers and retains Node, npm, `npx`, and Playwright on `PATH`.
+The image build and two fresh worker checks passed, proving offline installation reuse, the pinned package
+version, and both Chromium launch modes as `runner`. The 20 existing tests, POSIX shell checks, rejection checks,
+and documentation lint also passed. Independent review found no actionable issues or material SOLID trade-offs.
 
-Before the readability refactor, at commit `f8d4282`, the image build, 20 existing lifecycle and deployment tests,
-two fresh-container checks, four rejection checks, and the existing installation flags passed locally. Both
-Markdown files passed Harper. The JavaScript readability refactor at commit `a5b8a9c` also passed the image build,
-all 20 existing tests, two fresh-container checks, an invalid-integrity build, and the existing installation flags.
-Independent review found no actionable issues. The consuming workflow and runner resource settings remain unchanged.
-
-The POSIX shell revision passed `dash` syntax validation, ShellCheck in `sh` mode, all 20 existing tests, the image
-build, two fresh-container checks, and the existing installation flags. Negative checks rejected missing integrity,
-an invalid archive checksum, and a mismatched package version before installer execution. Independent review
-found no actionable issues.
+The earlier implementations at `f8d4282`, `a5b8a9c`, and `df33322` passed their focused local checks. Their
+historical evidence is recorded separately below. The consuming workflow
+and runner resource settings remain unchanged.
 
 The PR image build must pass before image publication. Image publication, deployment, and a measured setup-time
 improvement on the Swarm pool remain separate operational work; none is claimed by these local results.
@@ -132,24 +124,24 @@ The image build itself runs the new smoke check, so the existing pull request bu
 
 Leave the launcher, worker entry point, stack resource settings, credentials, registry permissions, image tag,
 deployment triggers, browser configurations, and LeadEmailFinder workflow commands unchanged. This pull request
-does not add Firefox or WebKit, a shared browser cache volume, a new runner pool, a global Playwright dependency,
-or a job container. Removing the residual operating system package check is outside this plan.
+adds Node, npm, `npx`, and global Playwright to the existing image. It does not add Firefox or WebKit, a shared
+browser cache volume, a new runner pool, or a job container. Removing the residual operating system package
+check is outside this plan.
 
 The plan authorizes no infrastructure deployment. It changes no application HTTP behavior or database schema.
 
 ## Plan of Work
 
-Add the browser provisioning layer after the existing Actions runner archive has been verified and extracted in
-`gh-actions-runner/Dockerfile`. Declare build arguments for installer version `1.63.0` and the exact SHA-512
-integrity shown under Artifacts and Notes. Copy `gh-actions-runner/install-chromium.sh` into the image and invoke
-it with `RUN sh /tmp/install-chromium.sh`. Use `#!/bin/sh` and `set -eu` in the script. Download the exact
-`playwright-core` package archive with `curl`, write its binary SHA-512 digest with `openssl dgst`, and encode that
-digest with `openssl base64` in a separate command. Compare the result with the declared integrity before extracting with
-`tar`. Use `jq` to verify the package version and write diagnostic metadata. A version or integrity mismatch
-must fail the image build before Playwright executes. Use sequential commands without pipelines or `pipefail`.
-Keep the installer in a temporary directory. Run its CLI with
-`/actions-runner/externals/node24/bin/node` and `install --with-deps chromium` as root, setting
-`PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright` for installation and all later worker processes.
+Add a `node:24-bookworm-slim` build stage to `gh-actions-runner/Dockerfile`. Copy its Node binary and npm
+directory into `/usr/local` in the existing Ubuntu 22.04 image, and create the npm and `npx` command links.
+Check that the copied tools run in the runner image. Workflows can still use `actions/setup-node` to select
+another Node version.
+
+Declare `PLAYWRIGHT_VERSION=1.63.0` and retain `PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright` for installation
+and all later worker processes. Copy `gh-actions-runner/install-chromium.sh` into the image and invoke it with
+`RUN sh /tmp/install-chromium.sh`. Keep `#!/bin/sh` and `set -eu`. The script runs
+`npm install --global --no-audit --no-fund "playwright@$PLAYWRIGHT_VERSION"`, followed by
+`playwright install --with-deps chromium`. npm handles package retrieval and integrity verification.
 
 Install the complete assets selected by `chromium`, including its headless shell and FFmpeg. Do not use
 `--only-shell` or change browser channels. This preserves both existing headed capabilities and the current
@@ -157,45 +149,44 @@ headless test behavior. Preserve the Ubuntu package repositories; the pinned Pla
 system-library requirements. This plan pins the installer and browser revisions but does not claim that the
 existing unpinned Ubuntu image and package repositories become reproducible byte for byte.
 
-Make `/opt/ms-playwright` readable, executable, and writable by `runner`. Keep the installer package readable
-while the image checks run, then remove it, its archive, and temporary build files. Retain a small JSON manifest
-at `/opt/runner-playwright.json` containing the exact installer version, archive integrity, browser path, and
-browser revision manifest. This is diagnostic metadata; consumers continue to use their own installed package.
+Make `/opt/ms-playwright` readable, executable, and writable by `runner`, and clear npm and package-manager
+caches. Retain the global Playwright package and CLI. Remove the custom archive verification, integrity argument,
+and diagnostic manifest; installed package metadata and `playwright --version` identify the installed version.
 
-Add `gh-actions-runner/tests/check_browser_capabilities.cjs`. Give it the absolute path of the unpacked
-`playwright-core` package as its only argument. It verifies package version against the image metadata, verifies
-the browser path is writable by the current non-root user, and launches both the default headless browser and
+Update `gh-actions-runner/tests/check_browser_capabilities.cjs` to load the installed global Playwright package
+and compare its version with the expected build argument. Its arguments are the absolute package directory
+`/usr/local/lib/node_modules/playwright` and the expected version `1.63.0`. It verifies that the browser path is writable
+by the current non-root user and launches both the default headless browser and
 the `chromium` channel. Each launch loads a local HTML document, checks its title, captures an in-memory
 screenshot, and closes the browser in a `finally` block. It writes no test artifact containing application data.
 
-After browser installation, use separate short `RUN --network=none` instructions to run the installer with
-`install chromium` and then the browser checker. Both instructions use `runuser` to execute as `runner`.
-Remove the temporary package and copied scripts in a separate cleanup instruction after those checks.
-The checks must fail the image build for missing libraries, missing binaries, wrong version metadata, or
+After browser installation, use separate short `RUN --network=none` instructions to run
+`playwright install chromium` and then the browser checker. Both instructions use `runuser` to execute as `runner`.
+Remove the copied build scripts in a separate cleanup instruction after those checks.
+The checks must fail the image build for missing libraries, missing binaries, the wrong package version, or
 inaccessible browser files. Use the existing image build workflow to run it
 for pull requests and before publication. Do not add credential access or change bootstrap runner labels.
 
-Document how to update both installer version and integrity when the consumer lockfile changes. Existing jobs
+Document how to update `PLAYWRIGHT_VERSION` when the consumer lockfile changes. Existing jobs
 with another Playwright version retain their writable, disposable browser directory and standard installer.
 After publication and an authorized deployment, compare the existing browser setup step with its prior run;
 record downloads, installed packages, and elapsed time separately from full workflow completion.
 
 ## Interfaces and Dependencies
 
-The new image contract is `PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright`, inherited by workers from their image.
-The diagnostic manifest is `/opt/runner-playwright.json`. Browser code continues to resolve the version selected
-by the consumer's frozen lockfile, without a global `NODE_PATH`, CLI shim, or Playwright dependency override.
+The image provides Node 24, npm, `npx`, and Playwright `1.63.0` on `PATH`, plus
+`PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright`. Consumer package scripts continue to resolve the version selected
+by their frozen lockfile. The build does not set a global `NODE_PATH` or override consumer dependencies.
 
-The provisioning script uses the image's existing POSIX shell, `curl`, `tar`, `openssl`, and `jq`. The runner's
-bundled Node 24 executable runs Playwright's CLI and the browser checker. The exact npm package archive selects
-the browser downloads and corresponding Ubuntu libraries installed during the image build.
-The installer package is temporary. The existing `RUNNER_TOOL_CACHE`, credential boundaries, workspace mounts,
-private daemon, and cleanup mechanism remain unchanged.
+The POSIX provisioning script depends on npm and the installed Playwright CLI. Playwright selects the browser
+downloads and corresponding Ubuntu libraries. The global package remains installed. The existing
+`RUNNER_TOOL_CACHE`, credential boundaries, workspace mounts, private daemon, and cleanup mechanism remain unchanged.
 
 ## Acceptance Criteria
 
-- A clean image build verifies the exact installer archive before running it and installs Chromium, its headless
-  shell, FFmpeg, and the required operating system libraries for Playwright `1.63.0`.
+- A clean image build installs exactly Playwright `1.63.0` globally through npm and installs its Chromium,
+  headless shell, FFmpeg, and required operating system libraries.
+- As `runner`, Node, npm, `npx`, and Playwright resolve on `PATH` and report their installed versions.
 - As the ordinary `runner` user, the exact Playwright package launches both tested Chromium modes and captures
   a screenshot without network access. Missing binaries or libraries make the image build fail.
 - In a fresh final-image container with a new volume over `/actions-runner/_work`, the same package's
@@ -205,8 +196,8 @@ private daemon, and cleanup mechanism remain unchanged.
   matching browser assets again. Any remaining package index or dependency check is recorded honestly.
 - The worker can create and remove a synthetic file in the browser directory. A second fresh worker does not
   inherit that file or a synthetic file created in the first worker's home.
-- The temporary installer package and archive are absent from the final image. The diagnostic manifest records
-  the version and integrity actually used to build it.
+- The final image retains global Playwright and its package metadata. Build scripts and custom diagnostic
+  metadata are absent; npm and package-manager caches are cleared after installation.
 - All existing mocked lifecycle and deployment tests pass. The worker continues to receive only its private
   daemon socket, fresh workspace, and short-lived registration token.
 - The existing pull request image build passes before publication. Live setup-time improvement remains pending
@@ -228,21 +219,22 @@ git diff --check
 
 When ShellCheck is available, also run `shellcheck --shell=sh gh-actions-runner/install-chromium.sh`.
 
-The image build runs `check_browser_capabilities.cjs` offline as `runner`. Inspect the final image metadata and
-stage a fresh copy of the exact verified installer package for the final-image check. Use a temporary directory
-outside the repository, use `openssl` to verify the archive's SHA-512 digest against the recorded integrity,
-and extract only after verification. Do not install it in the host dependency tree. Place the checker in that
-directory next to the unpacked `playwright-core` directory, and grant the container's `runner` user read and
-traverse access to this synthetic fixture. Set `runner_browser_fixture` to this prepared
-directory and run:
+The image build runs `check_browser_capabilities.cjs` offline as `runner`. Check the retained commands and global
+package version in a fresh container, then run the same browser checker against the installed package. From the
+Swarm repository root, mount only the checker as a read-only file and run:
 
 ```sh
 docker run --rm --network none --shm-size 1g \
   --mount type=volume,destination=/actions-runner/_work \
-  --mount "type=bind,source=$runner_browser_fixture,target=/browser-check,readonly" \
-  --user runner --entrypoint /bin/bash gh-actions-runner:chromium-check-20260914 -ec '
-    /actions-runner/externals/node24/bin/node /browser-check/playwright-core/cli.js install chromium
-    /actions-runner/externals/node24/bin/node /browser-check/check_browser_capabilities.cjs /browser-check/playwright-core
+  --mount "type=bind,source=$PWD/gh-actions-runner/tests/check_browser_capabilities.cjs,target=/tmp/check_browser_capabilities.cjs,readonly" \
+  --user runner --entrypoint /bin/sh gh-actions-runner:chromium-check-20260914 -ec '
+    node --version
+    npm --version
+    npx --version
+    playwright --version
+    npm list --global --depth=0
+    playwright install chromium
+    node /tmp/check_browser_capabilities.cjs /usr/local/lib/node_modules/playwright 1.63.0
     test ! -e /opt/ms-playwright/previous-worker
     test ! -e /home/runner/previous-worker
     touch /opt/ms-playwright/previous-worker /home/runner/previous-worker
@@ -251,9 +243,14 @@ docker run --rm --network none --shm-size 1g \
 
 Run this command twice. Both runs must pass; each starts a new image filesystem and disposable workspace volume.
 Repeat the exact existing installation command inside a disposable container with normal network access,
-using the staged CLI and `install --with-deps chromium` as `runner`. Compare its logs to the offline reuse check:
-package management may still access its indexes, but browser asset downloads must be absent. Remove the temporary
-fixture and local image when evidence has been captured. Do not start the runner entry point or register with GitHub.
+using `playwright install --with-deps chromium` as `runner`. Compare its logs to the offline reuse check:
+package management may still access its indexes, but browser asset downloads must be absent. Remove the local
+image when evidence has been captured. Do not start the runner entry point or register with GitHub.
+
+Use disposable checks to confirm that an unavailable npm package version fails installation and that the browser
+checker rejects an unexpected package version, inaccessible browser files, and missing browser executables.
+Record the resolved Node and npm versions from the built image. Verify that workflow-selected Node versions can
+still take precedence on `PATH` without changing the installed global browser assets.
 
 Run shell and workflow linters if their files change while implementing; unexpected changes to those files must
 still fit this image-provisioning outcome. Run Harper from the LeadEmailFinder root using the actual final plan
@@ -272,7 +269,7 @@ Bruno: not applicable — runner image provisioning does not change application 
 
 ## Idempotence and Recovery
 
-Image builds create disposable layers and may be retried after failed downloads. A failed integrity check or
+Image builds create disposable layers and may be retried after failed downloads. A failed npm installation or
 browser smoke check prevents a candidate image from passing the build. Consumer installation is safe to repeat:
 matching binaries remain available and additional writes stay in that worker's disposable layer.
 
@@ -312,7 +309,7 @@ Historical JavaScript readability refactor validation on 2026-09-14 at commit `a
 - The existing installer flags passed in 10.43 seconds locally, with zero browser downloads and no new packages.
 - Independent review found no actionable issues. The documented Harper command passed for both Markdown files.
 
-POSIX shell revision validation on 2026-09-14:
+Historical POSIX archive installer validation on 2026-09-14 at commit `df33322`:
 
 - `dash -n gh-actions-runner/install-chromium.sh` passed.
 - `docker run --rm -i --network none koalaman/shellcheck:v0.11.0 --shell=sh - < gh-actions-runner/install-chromium.sh`
@@ -325,18 +322,31 @@ POSIX shell revision validation on 2026-09-14:
 - The existing installer flags passed in 8.78 seconds locally, with zero browser downloads and no new packages.
 - Independent review found no actionable issues. The documented Harper command passed for both Markdown files.
 
-The current installer archive is
-`https://registry.npmjs.org/playwright-core/-/playwright-core-1.63.0.tgz`, with integrity:
+Global npm installation validation on 2026-09-14:
 
-```text
-sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fvC/bxgspzkjSfU+MweEMmPM8KJebG6nnyxo5mCg==
-```
+- The full image build passed, including offline browser reuse and both launch checks as `runner`.
+  The resolved tools are Node `24.21.0`, npm and `npx` `11.19.0`, and Playwright `1.63.0`.
+  The Node image resolved to `sha256:2fe369e969550cde8e867afc3fe370b260140cab4a23d467074295b42163d553`.
+- `dash -n`, Node syntax validation, ShellCheck `--shell=sh`, and whitespace checks passed.
+  All 20 existing lifecycle and deployment tests passed.
+- Two fresh workers with disposable workspace volumes passed in 3.35 and 3.23 seconds. Both reused and launched
+  Chromium offline through the global package and a separate copy representing the consumer package. Both launch
+  modes, browser writes, build-script cleanup, and isolation markers passed.
+- An unavailable npm version stopped the installer before browser installation. The checker rejected a wrong
+  expected version, a wrong browser path, inaccessible browser files, and missing executables.
+- Prepending the runner's bundled Node 20 directory selected Node `20.20.2`; the retained Playwright CLI still
+  reported `1.63.0` and reused Chromium offline. This checks ordinary `PATH` precedence locally, not a live
+  `actions/setup-node` run.
+- The existing `install --with-deps chromium` flags passed in 10.09 seconds locally, with zero browser downloads
+  and zero newly installed packages. This measures the remaining local package checks, not a CI speedup.
+- Independent review found no actionable issues. The documented Harper command passed for both Markdown files.
 
-The package registry metadata and archive contents were inspected on 2026-09-13; the integrity matches the
-consumer lockfile. The package CLI is self-contained, and its manifest selects the browser revisions stated above.
+The earlier checksum and manifest checks belong to the retired archive installer. This revision delegates
+package retrieval and integrity verification to npm and checks the retained package version and browser runtime.
+
 The [Playwright browser documentation](https://playwright.dev/docs/browsers) supports the shared browser path
-and version-specific installation behavior. The original implementation, JavaScript readability refactor, and POSIX
-shell revision passed their focused local build and runtime checks. Deployment and CI performance remain unverified.
+and version-specific installation behavior. Local validation of the global npm installation passed.
+Deployment and CI performance remain unverified.
 
 Suggested pull request title: `perf(runners): preinstall Chromium for browser validation`.
 The expected final location is `docs/plans/browser-ci/01-preinstall-chromium.md` in Swarm. This plan may proceed

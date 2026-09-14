@@ -6,28 +6,22 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 async function main() {
-  const [packageDirectory, ...extraArguments] = process.argv.slice(2);
+  const [packageDirectory, expectedVersion, ...extraArguments] = process.argv.slice(2);
   assert(
-    packageDirectory && path.isAbsolute(packageDirectory) && extraArguments.length === 0,
-    'Usage: node check_browser_capabilities.cjs /absolute/path/to/playwright-core',
+    packageDirectory && path.isAbsolute(packageDirectory) && expectedVersion && extraArguments.length === 0,
+    'Usage: node check_browser_capabilities.cjs /absolute/path/to/playwright expected-version',
   );
   assert(typeof process.getuid === 'function' && process.getuid() !== 0,
     'Run this check as the non-root runner user');
 
-  const metadata = JSON.parse(await fs.readFile('/opt/runner-playwright.json', 'utf8'));
   const packageMetadata = JSON.parse(await fs.readFile(path.join(packageDirectory, 'package.json'), 'utf8'));
-  const browserManifest = JSON.parse(await fs.readFile(path.join(packageDirectory, 'browsers.json'), 'utf8'));
-  assert.equal(packageMetadata.name, 'playwright-core', 'Expected the playwright-core package');
-  assert.equal(packageMetadata.version, metadata.version, 'Playwright version does not match the image');
-  assert.match(metadata.integrity, /^sha512-[A-Za-z0-9+/]{86}==$/, 'Expected a SHA-512 archive integrity');
-  assert(Array.isArray(metadata.browsers) && metadata.browsers.length > 0, 'Browser manifest is missing');
-  assert.deepEqual(browserManifest.browsers, metadata.browsers, 'Browser revisions do not match the image');
-  assert.equal(metadata.browserPath, '/opt/ms-playwright', 'Unexpected image browser path');
-  assert.equal(process.env.PLAYWRIGHT_BROWSERS_PATH, metadata.browserPath,
-    'PLAYWRIGHT_BROWSERS_PATH must match the image metadata');
+  assert.equal(packageMetadata.name, 'playwright', 'Expected the playwright package');
+  assert.equal(packageMetadata.version, expectedVersion, 'Playwright version does not match the image');
+  const browserPath = '/opt/ms-playwright';
+  assert.equal(process.env.PLAYWRIGHT_BROWSERS_PATH, browserPath, 'Unexpected image browser path');
 
-  await fs.access(metadata.browserPath, constants.R_OK | constants.W_OK | constants.X_OK);
-  const temporaryDirectory = await fs.mkdtemp(path.join(metadata.browserPath, '.capability-check-'));
+  await fs.access(browserPath, constants.R_OK | constants.W_OK | constants.X_OK);
+  const temporaryDirectory = await fs.mkdtemp(path.join(browserPath, '.capability-check-'));
   try {
     const temporaryFile = path.join(temporaryDirectory, 'writable');
     await fs.writeFile(temporaryFile, 'runner browser capability check\n', { flag: 'wx' });
