@@ -23,6 +23,30 @@ The image build checks the version and tests reading a deleted file from Git his
 The default Git 2.34 package in Ubuntu 22.04 silently produces incompatible output and causes that scanner to miss files.
 The package archive supplies stable updates; rebuild with `--no-cache` to refresh the installed Git package.
 
+## Chromium Runtime
+
+The image includes Chromium, its headless shell, FFmpeg, and Linux libraries selected by Playwright `1.63.0`.
+`PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright` points every worker to these installed browsers. This directory
+is writable by `runner` and lies outside the workspace mount. Each worker receives its own disposable copy
+of any changes, so additional browser installations do not affect another job.
+
+The build verifies the installer archive against the integrity in LeadEmailFinder's lockfile before running it
+with the Actions runner's bundled Node. It then checks browser reuse and launches both Chromium modes as
+`runner` without network access. The check renders local HTML and captures screenshots in memory. The image
+retains `/opt/runner-playwright.json` with the installer version, integrity, browser path, and revision manifest;
+the temporary installer is removed after validation. Consuming workflows still install their own Playwright package.
+
+Keep the existing `playwright install --with-deps chromium` command. Matching versions reuse installed browser
+assets, while other versions can install their required browsers. The command still checks Linux packages and
+may update package indexes. Preinstallation does not remove that work or establish a total browser-job duration.
+
+When the consumer's frozen lockfile changes Playwright versions, update `PLAYWRIGHT_VERSION` and
+`PLAYWRIGHT_INTEGRITY` together in the Dockerfile. Use the integrity for `playwright-core`, verify it against the
+registry archive, and run the image build plus the fresh-container checks in the
+[Chromium runtime plan](../docs/plans/browser-ci/01-preinstall-chromium.md). The CLI selects browser revisions;
+do not update browser directory names by hand. After deployment, compare setup logs and elapsed time separately
+from test execution and runner queue time.
+
 ## Capacity and Lifecycle
 
 The stack has two launcher replicas, allowing up to two GitHub Actions jobs to run concurrently.
