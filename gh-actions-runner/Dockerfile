@@ -92,8 +92,8 @@ ARG PLAYWRIGHT_INTEGRITY=sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fv
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
 
 # Use the consumer's exact installer and verify its archive before executing it.
-COPY gh-actions-runner/install-chromium.cjs /tmp/install-chromium.cjs
-RUN /actions-runner/externals/node24/bin/node /tmp/install-chromium.cjs
+COPY gh-actions-runner/install-chromium.sh /tmp/install-chromium.sh
+RUN sh /tmp/install-chromium.sh
 
 # An offline check as the job user proves browser reuse and launch before publishing.
 COPY gh-actions-runner/tests/check_browser_capabilities.cjs /tmp/check_browser_capabilities.cjs
@@ -101,7 +101,7 @@ RUN --network=none runuser -u runner -- \
     /actions-runner/externals/node24/bin/node /tmp/runner-playwright/cli.js install chromium
 RUN --network=none runuser -u runner -- /actions-runner/externals/node24/bin/node \
     /tmp/check_browser_capabilities.cjs /tmp/runner-playwright
-RUN rm -rf /tmp/runner-playwright /tmp/check_browser_capabilities.cjs /tmp/install-chromium.cjs
+RUN rm -rf /tmp/runner-playwright /tmp/check_browser_capabilities.cjs /tmp/install-chromium.sh
 
 # The launcher creates job-owned volumes; workers never inherit its host socket or PAT.
 COPY --chmod=755 gh-actions-runner/entrypoint.sh gh-actions-runner/runner-entrypoint.sh /

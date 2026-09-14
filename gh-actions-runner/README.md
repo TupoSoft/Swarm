@@ -30,8 +30,9 @@ The image includes Chromium, its headless shell, FFmpeg, and Linux libraries sel
 is writable by `runner` and lies outside the workspace mount. Each worker receives its own disposable copy
 of any changes, so additional browser installations do not affect another job.
 
-The build runs `install-chromium.cjs` with the Actions runner's bundled Node to verify the installer archive
-against the integrity in LeadEmailFinder's lockfile and install the browser assets and libraries. Separate build
+The build runs `install-chromium.sh` with a POSIX shell to verify the installer archive against the integrity
+in LeadEmailFinder's lockfile and install the browser assets and libraries. The script uses `openssl` for archive
+verification, `jq` for package metadata, and the Actions runner's bundled Node for Playwright's own CLI. Separate build
 steps check browser reuse and launch both Chromium modes as `runner` without network access. The check renders
 local HTML and captures screenshots in memory. The image retains `/opt/runner-playwright.json` with the installer
 version, integrity, browser path, and revision manifest;
